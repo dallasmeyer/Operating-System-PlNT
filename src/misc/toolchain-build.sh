@@ -35,11 +35,11 @@ download_and_check()
   echo "Downloaded and verified $fname from $1"
   if [ ! -d $fdirname ]; then
     echo "Extracting $fname to $fdirname..."
-    if [ $fname == *.tar.gz ]; then
-      tar xzf $fname 
-    elif [ $fname == *.tar.bz2 ]; then
+    if [[ $fname == *.tar.gz ]]; then
+      tar xzf $fname
+    elif [[ $fname == *.tar.bz2 ]]; then
       tar xjf $fname
-    elif [ $fname == *.tar.xz ]; then
+    elif [[ $fname == *.tar.xz ]]; then
       tar xJf $fname
     else
       perror "Unrecognized archive extension $fname"
@@ -158,7 +158,9 @@ if [ $tool == "all" -o $tool == "gcc" ]; then
   popd
 fi
 if [ $tool == "all" -o $tool == "gdb" ]; then
-  download_and_check https://ftp.gnu.org/gnu/gdb/gdb-7.9.1.tar.xz cd9c543a411a05b2b647dd38936034b68c2b5d6f10e0d51dc168c166c973ba40
+    download_and_check https://ftp.gnu.org/gnu/gdb/gdb-14.2.tar.gz 2de5174762e959a5e529e20c20d88a04735469d8fffd98f61664e70b341dc47c
+    # download_and_check https://ftp.gnu.org/gnu/gdb/gdb-7.9.1.tar.xz cd9c543a411a05b2b647dd38936034b68c2b5d6f10e0d51dc168c166c973ba40
+
 fi
 
 if [ $tool == "all" -o $tool == "binutils" ]; then
@@ -184,8 +186,9 @@ fi
 
 if [ $tool == "all" -o $tool == "gdb" ]; then
   echo "Building gdb..."
-  mkdir -p $CWD/build/gdb && cd $CWD/build/gdb 
-  ../../src/gdb-7.9.1/configure --prefix=$PREFIX --target=$TARGET --disable-werror || perror "Failed to configure gdb"
+  mkdir -p $CWD/build/gdb && cd $CWD/build/gdb
+   ../../src/gdb-14.2/configure --prefix=$PREFIX --target=$TARGET --disable-werror || perror "Failed to configure gdb"
+  # ../../src/gdb-7.9.1/configure --prefix=$PREFIX --target=$TARGET --disable-werror || perror "Failed to configure gdb"
   make -j8 || perror "Failed to make gdb"
   make install
 fi
