@@ -54,7 +54,7 @@ Code snippet referenced:
 ## 6) Tracing the behavior of the palloc_get_page() function from PintOS. Set a breakpoin on this function and identify the following values the first time that it is called:
 ### (a) What is the call stack when the function is called?
 Stack:
-palloc_get_pate()
+palloc_get_page()
 paging_init()
 pintos_init()
 start()
@@ -79,7 +79,7 @@ ebp            0xc000efd8          0xc000efd8
 ## 7) Tracing the behavior of the palloc_get_page() function from PintOS. Set a breakpoint on this function and identify the following values the third time that it is called:
 ### (a) What is the call stack when the function is called?
 Stack:
-palloc_get_pate()
+palloc_get_page()
 thread_create()
 thread_start()
 pintos_init()
