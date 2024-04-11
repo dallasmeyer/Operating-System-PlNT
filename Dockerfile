@@ -31,7 +31,8 @@ RUN apt update && apt -y install \
     cgdb \
     locales \
     libreadline-dev \
-    python3-dev
+    python3-dev \
+    file
 
 # set locales
 RUN locale-gen en_US.UTF-8 && update-locale LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8
