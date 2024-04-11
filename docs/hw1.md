@@ -2,11 +2,11 @@
 Physical address: 0xC0020EE0
 
 ## 2) How does the bootloader read disk sectors? In particular, what BIOS interrupt does it use?
-Bootloader reads the disk sector by looking at the first sector to see if its a boot sector.
-Uses INT 0x13
+Bootloader reads the disk sectors by looking at the first sector, to see if its a boot sector.
+It uses a INT 0x13 interrupt.
 
 ## 3) How does the bootloader decide if it successfully finds the PintOS kernel?
-In loader.S, the bootloader checks if the partition is equal to partition of type 0x20.
+In loader.S, the bootloader checks if the partition is equal to a type 0x20 partition.
 
 code snippet:
 ```
