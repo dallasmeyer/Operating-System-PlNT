@@ -72,7 +72,9 @@ static void locate_block_device (enum block_type, const char *name);
 
 // Extra functions for interactive shell
 static void run_inter_shell(void);		// Main event loop for our interactive shell 
-void read_shell(char *buff, int max_size); 	// Function for reading and outputing back the user input
+int read_shell(char *buff, int max_size); 	// Function for reading and outputing back the user input
+char **cheap_argparse(char *p, int size); 	// Function for parsing the command sent
+int check_exit(char **argv); 			// Function for checking if the exit string is in argv
 
 int pintos_init (void) NO_RETURN;
 
@@ -437,32 +439,40 @@ locate_block_device (enum block_type role, const char *name)
     }
 }
 #endif
+
+/* Function for handling the interactive shell */
 void run_inter_shell(){
-	printf("Pintos: interactive shell starting...\n");
-	//char **argv;
+	//printf("Pintos: interactive shell starting...\n");
+	
+	// Initializing our required variables
 	int max_size = 256;
 	char input_buff[max_size];
-	char *exit_str = "exit";
-	
-	do{
-		printf("CSE134> ");
-		//do{
-		//	input = input_getc();
-		//	printf("%c", input);
-		//}while(input != exit_char);
-		read_shell(input_buff, max_size); 
+	char **argv;
+	int exit_found = 0; // Initalize exit string found to False
 
+	// Do-While loop that handles and repeats the shell
+	do{
+		// Printing the the shell name
+		printf("CSE134> ");
+		// Reading input from the shell line and sending it back to the user until a newline character
+		max_size = read_shell(input_buff, max_size);
+	       	argv = cheap_argparse(input_buff, max_size); 	
+		exit_found = check_exit(argv);
 		
-	}while(strcmp(input_buff, exit_str) != 0); // TO-DO: Add the check exit to be correct
+	}while(!exit_found); // TO-DO: Add the check exit to be correct
 	
 	return;
 }
 
-void read_shell(char *buff, int max_size){
+
+/* Function for reading from the shell and outputting back to the user*/
+int read_shell(char *buff, int max_size){
+	// Initialzing our required shells
 	int exit_char = 13;
         uint8_t input = '\0';	
 	int i = 0; 
 
+	// Event loop for reading from the shell and outputting back to the user
 	do{
 		input = input_getc();
 	        printf("%c", input);
@@ -473,6 +483,60 @@ void read_shell(char *buff, int max_size){
 	}while((int)input != exit_char && i != max_size);
 	printf("\n");
 
+	// Making the user input a null terminated string
 	buff[i - 1] = '\0'; 
-	printf("Shell: user input accepted, is: %s\n", buff); 
+	// Letting the user know their command was accepted
+	//printf("Shell: user input accepted, is: %s\n", buff);
+	// Return chars read
+	return i;	
+}
+
+char **cheap_argparse(char *p, int size) {
+    // Count the number of spaces so we can use it for argv later 
+    int space_count = 0;
+    char *temp_p = p; // Create a temporary pointer to preserve the original pointer
+    for (int j = 0; j < size; j++){
+        if (*temp_p == ' ') {
+            space_count++;
+        }
+        temp_p++; 
+    }
+
+    // Allocate memory for argv array
+    char **argv = (char**)malloc((space_count + 2) * sizeof(char*)); // Add 1 for command and 1 for NULL terminator
+    if (argv == NULL) {
+        printf("Failed to allocate memory\n");
+        return NULL;
+    }
+
+    // Tokenize the input string and fill argv array
+    int argc = 0;
+    char *saveptr; // Pointer to maintain the context of strtok_r
+    char *token = strtok_r(p, " ", &saveptr); // Use strtok_r for tokenization
+    while (token != NULL && argc < space_count + 1) {
+        argv[argc] = token; // Assign the token directly to argv
+        argc++;
+        token = strtok_r(NULL, " ", &saveptr); // Use strtok_r for subsequent tokens
+    }
+    argv[argc] = NULL; // Add NULL terminator to argv
+    
+    // Print all elements of argv
+    printf("All elements of argv:\n");
+    for (int i = 0; argv[i] != NULL; i++) {
+        printf("argv[%d]: %s\n", i, argv[i]);
+    }
+
+    // Return the argv list
+    return argv;
+
+}
+
+/* Function to check if any of the argv commands are exit*/
+int check_exit(char **argv) {
+    for (int i = 0; argv[i] != NULL; i++) {
+        if (strcmp(argv[i], "exit") == 0) {
+            return 1; // Return 1 if exit string found
+        }
+    }
+    return 0; // Return 0 if exit string not found
 }
