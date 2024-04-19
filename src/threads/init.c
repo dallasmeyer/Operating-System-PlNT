@@ -70,6 +70,10 @@ static void locate_block_devices (void);
 static void locate_block_device (enum block_type, const char *name);
 #endif
 
+// Extra functions for interactive shell
+static void run_inter_shell(void);		// Main event loop for our interactive shell 
+void read_shell(char *buff, int max_size); 	// Function for reading and outputing back the user input
+
 int pintos_init (void) NO_RETURN;
 
 /** Pintos main entry point. */
@@ -134,6 +138,8 @@ pintos_init (void)
     run_actions (argv);
   } else {
     // TODO: no command line passed to kernel. Run interactively 
+    printf("Pintos: Command line argument not specified, opening interactive shell...\n");
+    run_inter_shell();
   }
 
   /* Finish up. */
@@ -431,3 +437,42 @@ locate_block_device (enum block_type role, const char *name)
     }
 }
 #endif
+void run_inter_shell(){
+	printf("Pintos: interactive shell starting...\n");
+	//char **argv;
+	int max_size = 256;
+	char input_buff[max_size];
+	char *exit_str = "exit";
+	
+	do{
+		printf("CSE134> ");
+		//do{
+		//	input = input_getc();
+		//	printf("%c", input);
+		//}while(input != exit_char);
+		read_shell(input_buff, max_size); 
+
+		
+	}while(strcmp(input_buff, exit_str) != 0); // TO-DO: Add the check exit to be correct
+	
+	return;
+}
+
+void read_shell(char *buff, int max_size){
+	int exit_char = 13;
+        uint8_t input = '\0';	
+	int i = 0; 
+
+	do{
+		input = input_getc();
+	        printf("%c", input);
+		//printf(":%d ", (int)input);
+		buff[i] = input;
+		++i;	
+
+	}while((int)input != exit_char && i != max_size);
+	printf("\n");
+
+	buff[i - 1] = '\0'; 
+	printf("Shell: user input accepted, is: %s\n", buff); 
+}
