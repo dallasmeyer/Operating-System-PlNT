@@ -72,6 +72,8 @@ static void locate_block_device(enum block_type, const char *name);
 #endif
 
 static void run_shell(void); // Added function for shell interaction
+static uint8_t check_command(char *buffer,
+                             char *target); // Added helper function
 
 int pintos_init(void) NO_RETURN;
 
@@ -413,26 +415,62 @@ void run_shell(void) {
   char buffer[200];
   size_t buf_n = 0;
   uint8_t input_char;
+  uint8_t result;
 
   while (exit_condition) {
     printf("CSE134> ");
-    while (1) {
+    for (;;) {
+      // get character input
       input_char = input_getc();
       printf("%c", input_char);
-      // concat to string buffer
+
+      // Check if a return
       if (input_char == 13)
         break;
+
+      // concat to string buffer
       buffer[buf_n] = input_char;
       buf_n++;
     }
     buffer[buf_n] = '\0';
-    printf("\n%s\n", buffer);
+    // New line, so that cursor moves
     printf("\r\n");
-    // Empty the buffer
+
+    if (buf_n) {
+      // Check for exit
+      result = check_command(buffer, "exit\0");
+      if (result) {
+        printf("Exiting shell...\n");
+        break;
+      }
+
+      // Check for whoami
+      result = check_command(buffer, "whoami\0");
+      if (result) {
+        printf("dacmeyer\n");
+      } else {
+        printf("Invalid command\n");
+      }
+    }
+
+    // reinit the buffer
     memset(buffer, 0, sizeof(buffer));
     buf_n = 0;
-    // exit_condition++;
   }
 
   return;
+}
+
+uint8_t check_command(char *buffer, char *target) {
+  // tokenize the buffer
+  char *token;
+  char *saveptr;
+  token = strtok_r(buffer, " \t\n", &saveptr);
+
+  // check if target
+  if (strcmp(token, target) == 0) {
+    return 1;
+  } else {
+    return 0;
+  }
 }
