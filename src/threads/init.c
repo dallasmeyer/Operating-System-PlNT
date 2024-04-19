@@ -74,7 +74,7 @@ static void locate_block_device (enum block_type, const char *name);
 static void run_inter_shell(void);		// Main event loop for our interactive shell 
 int read_shell(char *buff, int max_size); 	// Function for reading and outputing back the user input
 char **cheap_argparse(char *p, int size); 	// Function for parsing the command sent
-int check_exit(char **argv); 			// Function for checking if the exit string is in argv
+int check_for(char **argv, char *check_str); 	// Function for checking if the exit string is in argv
 
 int pintos_init (void) NO_RETURN;
 
@@ -443,12 +443,14 @@ locate_block_device (enum block_type role, const char *name)
 /* Function for handling the interactive shell */
 void run_inter_shell(){
 	//printf("Pintos: interactive shell starting...\n");
-	
 	// Initializing our required variables
 	int max_size = 256;
 	char input_buff[max_size];
 	char **argv;
 	int exit_found = 0; // Initalize exit string found to False
+	int comm_found = 0; // Initialize if command found boolean to false
+	char *exit_str = "exit";
+	char *who_str = "whoami";
 
 	// Do-While loop that handles and repeats the shell
 	do{
@@ -456,11 +458,20 @@ void run_inter_shell(){
 		printf("CSE134> ");
 		// Reading input from the shell line and sending it back to the user until a newline character
 		max_size = read_shell(input_buff, max_size);
-	       	argv = cheap_argparse(input_buff, max_size); 	
-		exit_found = check_exit(argv);
-		
+	       	// Parse the command line input into a list
+		argv = cheap_argparse(input_buff, max_size); 	
+		// Check if the exit command was specified
+		exit_found = check_for(argv, exit_str);
+		//Note: if the "exit" command is found any other command is cancelled and we prioritize exiting
+		if(!exit_found){
+			// If exit wasnt found check for our only other command line program "whoami" 
+			comm_found = check_for(argv, who_str);
+			// Action for "whoami" command and its alternative if not found
+			if(comm_found) {printf("kirby\n");}
+			else{printf("Invalid command\n");} 
+		}	
 	}while(!exit_found); // TO-DO: Add the check exit to be correct
-	
+	printf("exiting...\n"); 	
 	return;
 }
 
@@ -520,11 +531,11 @@ char **cheap_argparse(char *p, int size) {
     }
     argv[argc] = NULL; // Add NULL terminator to argv
     
-    // Print all elements of argv
-    printf("All elements of argv:\n");
-    for (int i = 0; argv[i] != NULL; i++) {
-        printf("argv[%d]: %s\n", i, argv[i]);
-    }
+    //Debugging only:  Print all elements of argv
+    //printf("All elements of argv:\n");
+    //for (int i = 0; argv[i] != NULL; i++) {
+    //    printf("argv[%d]: %s\n", i, argv[i]);
+    //}
 
     // Return the argv list
     return argv;
@@ -532,11 +543,11 @@ char **cheap_argparse(char *p, int size) {
 }
 
 /* Function to check if any of the argv commands are exit*/
-int check_exit(char **argv) {
+int check_for(char **argv, char *check_str) {
     for (int i = 0; argv[i] != NULL; i++) {
-        if (strcmp(argv[i], "exit") == 0) {
-            return 1; // Return 1 if exit string found
+        if (strcmp(argv[i], check_str) == 0) {
+            return 1; // Return 1 if check_str found
         }
     }
-    return 0; // Return 0 if exit string not found
+    return 0; // Return 0 if check_str string not found
 }
