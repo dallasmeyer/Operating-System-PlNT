@@ -71,6 +71,9 @@ static void schedule (void);
 void thread_schedule_tail (struct thread *prev);
 static tid_t allocate_tid (void);
 
+/* <NEW> Functions added to stop timer_sleep() from using a busy wait */
+void thread_sub_tick(struct thread *t, void *aux);
+
 /** Initializes the threading system by transforming the code
    that's currently running into a thread.  This can't work in
    general and it is possible in this case only because loader.S
@@ -582,3 +585,14 @@ allocate_tid (void)
 /** Offset of `stack' member within `struct thread'.
    Used by switch.S, which can't figure it out on its own. */
 uint32_t thread_stack_ofs = offsetof (struct thread, stack);
+/* <NEW> Functions added to stop timer_sleep() from using a busy wait */
+void thread_sub_tick(struct thread *t, void *aux) {
+    // Subtract 1 thread tick_min per call 
+    int64_t ticks_left = t->ticks_min - 1;
+    // Change the current thread's tick min
+    t->ticks_min = ticks_left;
+    // See if the thread should be unblocked and do unblock if needed 
+    if (ticks_left <= 0) {
+        thread_unblock(t);
+    }
+} 

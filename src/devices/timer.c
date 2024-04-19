@@ -89,23 +89,18 @@ timer_elapsed (int64_t then)
 void
 timer_sleep (int64_t ticks) 
 {
-  	int64_t start = timer_ticks ();
+  	//int64_t start = timer_ticks ();
 
   	// Make sure the interrupts are on so we can assign a accurate tick_min to a thread
-  	ASSERT (intr_get_level () == INTR_ON);
+  	ASSERT (intr_get_level() == INTR_ON);
   	thread_current()->ticks_min = ticks;
-	printf("timer_sleep: tid:%d | ticks: %d", thread_current()->tid, thread_current()->ticks_min) 
+	printf("timer_sleep: tid:%d | ticks: %d", thread_current()->tid, (int)thread_current()->ticks_min); 
  	// Turn interrupts off to allow for thread mutual exclusion as a interrupt could stop a mutex
 		// Note: Also required to use thread_block in threads.c
-	ASSERT (intra_get_level() == INTRA_OFF);
-	thread_block()
-  	
-
-
-
+	ASSERT (intr_get_level() == INTR_OFF);
+	thread_block();
 	// Turn interrupts back on once sleep is done
   	ASSERT (intr_get_level () == INTR_ON);
-  }
 }
 
 /** Sleeps for approximately MS milliseconds.  Interrupts must be
@@ -184,6 +179,12 @@ timer_interrupt (struct intr_frame *args UNUSED)
 {
   ticks++;
   thread_tick ();
+  /*<NEW>
+  We know timer interrupt wont work as originally built because interrupts are disabled when 
+  threads sleep, so the timer counter funct (timer_interrupt) must be modified to work again 
+  */
+  // New function that modifies each threads tick_min till 0 (when 0 finished sleeping)
+  thread_foreach(thread_sub_tick, 0); 
 }
 
 /** Returns true if LOOPS iterations waits for more than one timer

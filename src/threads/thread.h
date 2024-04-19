@@ -139,4 +139,6 @@ void thread_set_nice (int);
 int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
 
+/* <NEW> Functions added to stop timer_sleep() from using a busy wait */
+void thread_sub_tick(struct thread *t, void *aux);
 #endif /**< threads/thread.h */
