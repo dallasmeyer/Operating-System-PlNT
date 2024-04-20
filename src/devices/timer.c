@@ -30,6 +30,9 @@ static void busy_wait (int64_t loops);
 static void real_time_sleep (int64_t num, int32_t denom);
 static void real_time_delay (int64_t num, int32_t denom);
 
+/*<NEW> function to remove busy waiting in imer_sleep()*/
+void check_thread_sleep(struct thread *t, void *aux);
+
 /** Sets up the timer to interrupt TIMER_FREQ times per second,
    and registers the corresponding interrupt. */
 void
@@ -89,18 +92,17 @@ timer_elapsed (int64_t then)
 void
 timer_sleep (int64_t ticks) 
 {
-  	//int64_t start = timer_ticks ();
-
-  	// Make sure the interrupts are on so we can assign a accurate tick_min to a thread
-  	ASSERT (intr_get_level() == INTR_ON);
-  	thread_current()->ticks_min = ticks;
-	printf("timer_sleep: tid:%d | ticks: %d", thread_current()->tid, (int)thread_current()->ticks_min); 
- 	// Turn interrupts off to allow for thread mutual exclusion as a interrupt could stop a mutex
-		// Note: Also required to use thread_block in threads.c
-	ASSERT (intr_get_level() == INTR_OFF);
-	thread_block();
-	// Turn interrupts back on once sleep is done
+	// Make sure interrupts are turned on so we put the correct time in ticks_sleep
   	ASSERT (intr_get_level () == INTR_ON);
+	// Get the current tick timer since boot
+	int64_t start = timer_ticks ();
+	thread_current()->ticks_sleep = start + ticks;
+	// Disable interrupts so threads can block
+	enum intr_level curr_level = intr_disable();
+	// Block the thread	
+	thread_block(); 
+	// Once the thread is unblocked reset back to the current interrupt level
+	intr_set_level(curr_level);
 }
 
 /** Sleeps for approximately MS milliseconds.  Interrupts must be
@@ -179,12 +181,9 @@ timer_interrupt (struct intr_frame *args UNUSED)
 {
   ticks++;
   thread_tick ();
-  /*<NEW>
-  We know timer interrupt wont work as originally built because interrupts are disabled when 
-  threads sleep, so the timer counter funct (timer_interrupt) must be modified to work again 
-  */
-  // New function that modifies each threads tick_min till 0 (when 0 finished sleeping)
-  thread_foreach(thread_sub_tick, 0); 
+
+  // After a tick update check each thread if they have slept enough
+  thread_foreach(check_thread_sleep, 0); 
 }
 
 /** Returns true if LOOPS iterations waits for more than one timer
@@ -256,4 +255,17 @@ real_time_delay (int64_t num, int32_t denom)
      the possibility of overflow. */
   ASSERT (denom % 1000 == 0);
   busy_wait (loops_per_tick * num / 1000 * TIMER_FREQ / (denom / 1000)); 
+}
+
+// <NEW> Function for checking if the current thread should release
+void check_thread_sleep(struct thread *t, void *aux){
+	// Make sure the thread is already in the blocking state
+	if(t->status == THREAD_BLOCKED){
+		// Get the current tick time
+		int64_t ticks = timer_ticks();
+		// If tick timer greater than ticks_sleep unblock thread
+		if(t->ticks_sleep <= ticks){
+			thread_unblock(t);
+		}
+	}
 }

@@ -89,8 +89,9 @@ struct thread
     uint8_t *stack;                     /**< Saved stack pointer. */
     int priority;                       /**< Priority. */
     struct list_elem allelem;           /**< List element for all threads list. */
-    int64_t ticks_min;			//<NEW> Minimum number of ticks for a task
-
+    //<NEW> variable for locking threads while they sleep
+    	// Defines the time in the OS clock that the thread should wakeup at 	
+    int64_t ticks_sleep;
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /**< List element. */
 
