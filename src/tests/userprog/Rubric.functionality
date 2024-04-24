@@ -45,8 +45,3 @@ Functionality of system calls:
 
 - Test recursive execution of user programs.
 15	multi-recurse
-
-- Test read-only executable feature.
-3	rox-simple
-3	rox-child
-3	rox-multichild
