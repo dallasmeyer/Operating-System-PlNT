@@ -18,7 +18,9 @@
 #include "threads/thread.h"
 #include "threads/vaddr.h"
 
-static thread_func start_process NO_RETURN;
+#define MAX_ARGS_SIZE 4096 // NEW: max size for user program arguments
+
+thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
 
 /** Starts a new thread running a user program loaded from
@@ -38,21 +40,86 @@ process_execute (const char *file_name)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
 
+
+  // dev-print NEW: print statement for seeing what file_name is
+  printf("process_execute: %s\n", fn_copy);
+
+
   /* Create a new thread to execute FILE_NAME. */
+  // NEW: dev-print
+  printf("creating thread process...\n");
   tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy); 
+  // NEW: dev-print
+  printf("finished thread proccess!!!\n");
   return tid;
 }
 
 /** A thread function that loads a user process and starts it
    running. */
-static void
+void
 start_process (void *file_name_)
 {
   char *file_name = file_name_;
   struct intr_frame if_;
   bool success;
+
+  // NEW: dev-print 
+  printf("~~~~~~~start_process~~~~~~~~\n");
+  // NEW: parse the command line string
+  char *save_ptr; 
+  char *user_prog;
+
+  // NEW: parse the first token to save the user_prog
+  user_prog = strtok_r(file_name_, " ", &save_ptr);
+  if(user_prog == NULL){
+  	// If we failed to find the user prog 
+	// or any other issue, exit
+	return;
+	  //exit(1);
+  } 
+  // Dev-print
+  printf("	user_prog: [%s]\n", user_prog);
+
+
+  // NEW: parse and save the user arguments
+  // allocate memory for the user arguments
+  char **user_args = malloc(MAX_ARGS_SIZE); // FREE THIS
+  if(user_args == NULL){
+	// Failed to allocate enough space for user args
+	// return -1
+  	printf("%s: exit(%d)\n", user_prog, -1); 
+  }
+  // Parse the user arguments into tokens
+  int arg_count = 0;
+  size_t arg_size = 0;
+  char *token;
+  token = strtok_r(NULL, " ", &save_ptr);
+  while (token != NULL){
+	// Add current tokens size to running arg size + null terminator
+  	arg_size += strlen(token) +1; 
+	// Add 1 to total number of arguments
+	++arg_count;
+	// dev-print
+	printf("	arg_count: %d | token: [%s]\n", arg_count, token);
+
+	// Check that we have not exceeded the max argument size
+	if (arg_size > MAX_ARGS_SIZE) {
+		// If we exceeded the max arguments size, stop 
+		// looking for more arguments and continue with 
+		// what was found 
+		break;
+	}
+	// Add argument to user_args
+	user_args[arg_count-1] = token;
+	// Check for the next token
+	token = strtok_r(NULL, " ", &save_ptr);
+  }
+  // Null terminate user_args
+  user_args[arg_count] = NULL;
+  // dev-print
+  printf("	total arg_count: %d | total_size %lu \n", arg_count, arg_size);
 
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
@@ -60,6 +127,10 @@ start_process (void *file_name_)
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
   success = load (file_name, &if_.eip, &if_.esp);
+
+  // NEW: Free allocated memory from up above
+  free(user_args);
+  user_args = NULL; 
 
   /* If load failed, quit. */
   palloc_free_page (file_name);
