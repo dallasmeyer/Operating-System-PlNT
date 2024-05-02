@@ -89,10 +89,9 @@ struct thread
     uint8_t *stack;                     /**< Saved stack pointer. */
     int priority;                       /**< Priority. */
     struct list_elem allelem;           /**< List element for all threads list. */
-    //<NEW> variable for locking threads while they sleep
-    	// Defines the time in the OS clock that the thread should wakeup at 	
-    int64_t ticks_sleep;
+
     /* Shared between thread.c and synch.c. */
+    int64_t ticks_to_sleep;
     struct list_elem elem;              /**< List element. */
 
 #ifdef USERPROG
@@ -140,6 +139,4 @@ void thread_set_nice (int);
 int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
 
-/* <NEW> Functions added to stop timer_sleep() from using a busy wait */
-void thread_sub_tick(struct thread *t, void *aux);
 #endif /**< threads/thread.h */
