@@ -18,10 +18,10 @@
 #include "threads/thread.h"
 #include "threads/vaddr.h"
 
-#define MAX_ARGS_SIZE 4096 // NEW: max size for user program arguments
+#define MAX_ARGS_LEN 4096 // NEW: max size for user program arguments
 
-thread_func start_process NO_RETURN;
-static bool load (const char *cmdline, void (**eip) (void), void **esp);
+thread_func start_process;
+static bool load (const char *cmdline, void (**eip) (void), void **esp, char **user_args, int arg_count);
 
 /** Starts a new thread running a user program loaded from
    FILENAME.  The new thread may be scheduled (and may even exit)
@@ -42,17 +42,17 @@ process_execute (const char *file_name)
 
 
   // dev-print NEW: print statement for seeing what file_name is
-  printf("process_execute: %s\n", fn_copy);
+  //printf("process_execute: %s\n", fn_copy);
 
 
   /* Create a new thread to execute FILE_NAME. */
   // NEW: dev-print
-  printf("creating thread process...\n");
+  //printf("creating thread process...\n");
   tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy); 
   // NEW: dev-print
-  printf("finished thread proccess!!!\n");
+  //printf("finished thread proccess!!!\n");
   return tid;
 }
 
@@ -77,7 +77,7 @@ start_process (void *file_name_)
   	// If we failed to find the user prog 
 	// or any other issue, exit
 	return;
-	  //exit(1);
+
   } 
   // Dev-print
   printf("	user_prog: [%s]\n", user_prog);
@@ -85,34 +85,38 @@ start_process (void *file_name_)
 
   // NEW: parse and save the user arguments
   // allocate memory for the user arguments
-  char **user_args = malloc(MAX_ARGS_SIZE); // FREE THIS
+  char **user_args = malloc(MAX_ARGS_LEN + strlen(user_prog) + 1); // FREE THIS
   if(user_args == NULL){
 	// Failed to allocate enough space for user args
-	// return -1
+	// return -1, this print might need to change later
   	printf("%s: exit(%d)\n", user_prog, -1); 
+  }else{
+  	// Add user_prog as the first element
+	// if memory allocated correctly 
+	user_args[0] = user_prog;
+  
   }
   // Parse the user arguments into tokens
-  int arg_count = 0;
+  int arg_count = 1;
   size_t arg_size = 0;
   char *token;
   token = strtok_r(NULL, " ", &save_ptr);
   while (token != NULL){
 	// Add current tokens size to running arg size + null terminator
   	arg_size += strlen(token) +1; 
-	// Add 1 to total number of arguments
-	++arg_count;
-	// dev-print
-	printf("	arg_count: %d | token: [%s]\n", arg_count, token);
-
 	// Check that we have not exceeded the max argument size
-	if (arg_size > MAX_ARGS_SIZE) {
+	if (arg_size > MAX_ARGS_LEN) {
 		// If we exceeded the max arguments size, stop 
 		// looking for more arguments and continue with 
 		// what was found 
 		break;
 	}
 	// Add argument to user_args
-	user_args[arg_count-1] = token;
+	user_args[arg_count] = token;
+	// Add 1 to total number of arguments
+	++arg_count;
+	// dev-print
+	printf("	arg_count: %d | token: [%s]\n", arg_count, token);
 	// Check for the next token
 	token = strtok_r(NULL, " ", &save_ptr);
   }
@@ -126,7 +130,7 @@ start_process (void *file_name_)
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
-  success = load (file_name, &if_.eip, &if_.esp);
+  success = load (file_name, &if_.eip, &if_.esp, user_args, arg_count);
 
   // NEW: Free allocated memory from up above
   free(user_args);
@@ -266,7 +270,7 @@ struct Elf32_Phdr
 #define PF_W 2          /**< Writable. */
 #define PF_R 4          /**< Readable. */
 
-static bool setup_stack (void **esp);
+static bool setup_stack (void **esp, const char *user_prog, char **user_args, int arg_count); 
 static bool validate_segment (const struct Elf32_Phdr *, struct file *);
 static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
                           uint32_t read_bytes, uint32_t zero_bytes,
@@ -277,7 +281,7 @@ static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
    and its initial stack pointer into *ESP.
    Returns true if successful, false otherwise. */
 bool
-load (const char *file_name, void (**eip) (void), void **esp) 
+load (const char *file_name, void (**eip) (void), void **esp, char **user_args, int arg_count) 
 {
   struct thread *t = thread_current ();
   struct Elf32_Ehdr ehdr;
@@ -286,12 +290,16 @@ load (const char *file_name, void (**eip) (void), void **esp)
   bool success = false;
   int i;
 
+  // Dev-print
+  printf("~~~~~~~load()~~~~~~\n");
   /* Allocate and activate page directory. */
   t->pagedir = pagedir_create ();
   if (t->pagedir == NULL) 
     goto done;
   process_activate ();
 
+  // dev-print
+  printf("	Opening executable file\n"); 
   /* Open executable file. */
   file = filesys_open (file_name);
   if (file == NULL) 
@@ -300,6 +308,8 @@ load (const char *file_name, void (**eip) (void), void **esp)
       goto done; 
     }
 
+  // dev-print
+  printf("	verifying headers\n");
   /* Read and verify executable header. */
   if (file_read (file, &ehdr, sizeof ehdr) != sizeof ehdr
       || memcmp (ehdr.e_ident, "\177ELF\1\1\1", 7)
@@ -313,6 +323,8 @@ load (const char *file_name, void (**eip) (void), void **esp)
       goto done; 
     }
 
+  // dev-print 
+  printf("	Reading program headers\n");
   /* Read program headers. */
   file_ofs = ehdr.e_phoff;
   for (i = 0; i < ehdr.e_phnum; i++) 
@@ -372,8 +384,10 @@ load (const char *file_name, void (**eip) (void), void **esp)
         }
     }
 
+  // dev-print 
+  printf("	Calling to setup the stack\n");
   /* Set up stack. */
-  if (!setup_stack (esp))
+  if (!setup_stack (esp, file_name, user_args, arg_count))
     goto done;
 
   /* Start address. */
@@ -498,7 +512,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 /** Create a minimal stack by mapping a zeroed page at the top of
    user virtual memory. */
 static bool
-setup_stack (void **esp) 
+setup_stack (void **esp, const char *user_prog, char **user_args, int arg_count) 
 {
   uint8_t *kpage;
   bool success = false;
@@ -506,11 +520,61 @@ setup_stack (void **esp)
   kpage = palloc_get_page (PAL_USER | PAL_ZERO);
   if (kpage != NULL) 
     {
+      // Dev-print 
+      printf("~~~~~~~Setup_Stack()~~~~~~~\n"); 
+      // Install page into users virtual address space
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
-      if (success)
-        *esp = PHYS_BASE;
-      else
-        palloc_free_page (kpage);
+      if (success){
+	// Initialize the stack pointer to PHYS_BASE (top of page)
+        // Allign it at the same time
+	*esp = (void *)((uintptr_t)PHYS_BASE & ~0x3);
+	// Dev-print
+	printf("	esp aligned to [0x%x]\n", (uintptr_t)*esp);
+
+	// Calculate # of user argument pointers we will push to the stack
+	// and create a user argument ptr holder argv
+	// +1 for null pointer sentinel
+	char *argv[arg_count+1]; 
+	//Push user program arguments onto user virtual stack
+	int len;
+	for(int i = arg_count-1; i >= 0; i--){
+		// Move the stack pointer down by the user arg being pushed
+		len = strlen(user_args[i]) + 1;
+		*esp -= len; 
+		// Copy the user arg into the user virtual memory stack
+		memcpy(*esp, user_args[i], len); 
+	        // Add the new address to argv
+		argv[i] = (char *) *esp; 	
+		// dev-print
+		printf("        i: %d | esp: 0x%x | user_arg[%d]: %s\n", i, (uintptr_t)*esp, i, user_args[i]);
+	}
+	argv[arg_count] = NULL; // Null pointer sentinel
+	
+	// Push user program addresses onto user virtual stack
+	for(int j = arg_count; j >= 0; j--){
+		// Move the stack pointer down by the user arg ptr size
+		len = strlen(argv[j]);
+		*esp -= len; 
+		// Copy the user arg ptr into the user virtual memory stack
+		memcpy(*esp,  argv[j], len);
+	}
+	// Push argv onto the stack
+	len = sizeof(char **); 
+	*esp -= len;
+	memcpy(*esp, argv, len);
+	// Push argc onto the stack 
+	len = sizeof(arg_count); 
+	*esp -= len; 
+	memcpy(*esp, arg_count, len);
+	// Push fake return address 
+	*esp -= sizeof(void*); 
+	success = true;
+
+      }
+      else{
+      	// else, issue installing page, free it  
+	palloc_free_page (kpage);
+      }
     }
   return success;
 }
