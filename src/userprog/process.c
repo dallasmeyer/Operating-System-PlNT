@@ -18,7 +18,14 @@
 #include "threads/thread.h"
 #include "threads/vaddr.h"
 
+// NEW: for synchronizations
+#include "threads/synch.h"
+
 #define MAX_ARGS_LEN 4096 // NEW: max size for user program arguments
+
+// NEW: synch primitives
+struct semaphore sem_load;
+
 
 thread_func start_process;
 static bool load (const char *cmdline, void (**eip) (void), void **esp, char **user_args, int arg_count);
@@ -44,15 +51,22 @@ process_execute (const char *file_name)
   // dev-print NEW: print statement for seeing what file_name is
   //printf("process_execute: %s\n", fn_copy);
 
+  // NEW : initalize sem_load helping a thread load its executable
+  sema_init(&sem_load,0);
 
   /* Create a new thread to execute FILE_NAME. */
   // NEW: dev-print
   //printf("creating thread process...\n");
   tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
-  if (tid == TID_ERROR)
+  if (tid == TID_ERROR){
     palloc_free_page (fn_copy); 
-  // NEW: dev-print
-  //printf("finished thread proccess!!!\n");
+    return tid;
+   }
+
+  // Wait on the new user_prog thread load
+  sema_down(&sem_load);
+
+  // Return tid when done 
   return tid;
 }
 
@@ -131,6 +145,9 @@ start_process (void *file_name_)
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
   success = load (file_name, &if_.eip, &if_.esp, user_args, arg_count);
+
+  // unblock kernel thread
+  sema_up(&sem_load); 
 
   // NEW: Free allocated memory from up above
   free(user_args);
