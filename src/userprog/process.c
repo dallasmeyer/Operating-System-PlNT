@@ -565,26 +565,41 @@ setup_stack (void **esp, const char *user_prog, char **user_args, int arg_count)
 		// dev-print
 		printf("        i: %d | esp: 0x%x | user_arg[%d]: %s\n", i, (uintptr_t)*esp, i, user_args[i]);
 	}
-	argv[arg_count] = NULL; // Null pointer sentinel
-	
+	// dev-print
+	printf("	args added to stack\n");
+	//argv[arg_count] = NULL; // Null pointer sentinel
+	// Add the null pointer sentinel to the user virtual stack 
+	*esp -= sizeof(char *); 
+	*((char **)*esp) = NULL; 
+
 	// Push user program addresses onto user virtual stack
-	for(int j = arg_count; j >= 0; j--){
+	for(int j = arg_count-1; j >= 0; j--){
 		// Move the stack pointer down by the user arg ptr size
 		len = strlen(argv[j]);
 		*esp -= len; 
 		// Copy the user arg ptr into the user virtual memory stack
 		memcpy(*esp,  argv[j], len);
+		printf("        i: %d | esp: 0x%x | user_arg[%d]: %s\n", j, (uintptr_t)*esp, argv[j]);
 	}
+	printf("	Pushing final pieces\n");
 	// Push argv onto the stack
 	len = sizeof(char **); 
 	*esp -= len;
 	memcpy(*esp, argv, len);
-	// Push argc onto the stack 
-	len = sizeof(arg_count); 
-	*esp -= len; 
-	memcpy(*esp, arg_count, len);
+	// Push argc onto the stack
+	 // Find arg_count length  
+	len = snprintf(NULL,0, "%d", arg_count);
+	 // buffer arg_count into a string
+	char argc_str[len +1];
+	snprintf(argc_str, len+1, "%d", arg_count);
+	 // push arg_count onto the stack
+	*esp -= len+1; 
+	memcpy(*esp, argc_str, len);
+
+
 	// Push fake return address 
 	*esp -= sizeof(void*); 
+	printf("	finished...\n");
 	success = true;
 
       }
