@@ -545,16 +545,12 @@ setup_stack (void **esp, const char *user_prog, char **user_args, int arg_count)
   kpage = palloc_get_page (PAL_USER | PAL_ZERO);
   if (kpage != NULL) 
     {
-      // Dev-print 
-      //printf("~~~~~~~Setup_Stack()~~~~~~~\n"); 
-      // Install page into users virtual address space
+      // Inscctall page into users virtual address space
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
       if (success){
 	// Initialize the stack pointer to PHYS_BASE (top of page)
         // Allign it at the same time
 	*esp = (void *)((uintptr_t)PHYS_BASE & ~0x3);
-	// Dev-print
-	//printf("	esp aligned to [0x%x]\n", (uintptr_t)*esp);
 
 	// Calculate # of user argument pointers we will push to the stack
 	// and create a user argument ptr holder argv
@@ -573,9 +569,7 @@ setup_stack (void **esp, const char *user_prog, char **user_args, int arg_count)
 		// dev-print
 		printf("        i: %d | esp: 0x%x | user_arg[%d]: %s\n", i, (uintptr_t)*esp, i, user_args[i]);
 	}
-	// dev-print
-	//printf("	args added to stack\n");
-	//argv[arg_count] = NULL; // Null pointer sentinel
+
 	// Add the null pointer sentinel to the user virtual stack 
 	*esp -= sizeof(char *); 
 	*((char **)*esp) = NULL; 
@@ -595,15 +589,6 @@ setup_stack (void **esp, const char *user_prog, char **user_args, int arg_count)
 	*esp -= len;
 	memcpy(*esp, argv, len);
 	// Push argc onto the stack
-	 // Find arg_count length  
-	len = snprintf(NULL,0, "%d", arg_count);
-	 // buffer arg_count into a string
-	//char argc_str[len +1];
-	//snprintf(argc_str, len+1, "%d", arg_count);
-	 // push arg_count onto the stack
-	//*esp -= len+1; 
-	//memcpy(*esp, argc_str, len);
-	// Mod line 
 	*esp -= sizeof(int); 
 	memcpy(*esp, &arg_count, sizeof(int));
 
