@@ -68,6 +68,7 @@ static void syscall_handler(struct intr_frame *f UNUSED) {
 
   // Case 6: Delete a file
   case SYS_REMOVE:
+    remove(*(stack_p + 4));
     break;
 
   // Case 7: Open a file
@@ -196,11 +197,16 @@ int write(int fd, const void *buffer, unsigned size) {
     return size;
   }
 
-  // FIXME: implement getting file and writing
+  // FIXME: implement getting file struct
   // struct file f_inst =
+
+  lock_acquire(&file_lock);
+  // off_t result = file_write(file_inst, buffer, size);
+  lock_release(&file_lock);
 
   return 0;
 }
+
 // void seek (int fd, unsigned position);
 // unsigned tell (int fd);
 // void close (int fd);
