@@ -10,21 +10,6 @@
 
 static void syscall_handler(struct intr_frame *);
 
-// declaring the system calls
-// void halt(void);
-// void exit(int status);
-// pid_t exec(const char *cmd_line);
-// int wait(pid_t pid);
-// bool create(const char *file, unsigned initial_size);
-// bool remove(const char *file);
-// int open(const char *file);
-// int filesize(int fd);
-// int read(int fd, void *buffer, unsigned size);
-// int write(int fd, const void *buffer, unsigned size);
-// void seek(int fd, unsigned position);
-// unsigned tell(int fd);
-// void close(int fd);
-
 // structs
 struct lock file_lock;
 
@@ -41,84 +26,82 @@ static void syscall_handler(struct intr_frame *f UNUSED) {
   // Get stack pointer via "esp" of intr_frame
   int *stack_p = f->esp;
 
-
   // check if virtual address
   if (!is_user_vaddr(stack_p)) {
     printf("syscall_handler(): Not a virtual address!");
   }
 
   // Dereference the stack pointer into the system call function number
-  int syscall_funct = *stack_p; 
-  // Dev print statement: 
+  int syscall_funct = *stack_p;
+  // Dev print statement:
 
+  switch (syscall_funct) {
 
+  //~~~~~ Project 2 system calls ~~~~~
+  // Case 1: halt the operating system
+  case SYS_HALT:
+    printf("(syscall) syscall_funct is [SYS_HALT]\n");
+    halt();
+    break;
 
-  switch(syscall_funct){
-  
-	  //~~~~~ Project 2 system calls ~~~~~
-	  // Case 1: halt the operating system 
-	  case SYS_HALT:
-	  printf("(syscall) syscall_funct is [SYS_HALT]\n"); 
-	  halt(); 
-	  break; 
+  // Case 2: terminate this process
+  case SYS_EXIT:
+    exit();
+    thread_exit();
+    break;
 
-	  // Case 2: terminate this process
-	  case SYS_EXIT: 
-	  break; 
-	  
-	  // Case 3: Start another process
-	  case SYS_EXEC: 
-	  break; 
+  // Case 3: Start another process
+  case SYS_EXEC:
+    f->eax = exec(*(stack_p + 1));
+    break;
 
-	  // Case 4: Wait for a child process to die
-	  case SYS_WAIT: 
-	  break; 
+  // Case 4: Wait for a child process to die
+  case SYS_WAIT:
+    // wait();
+    break;
 
-	  // Case 5: Create a file
-	  case SYS_CREATE: 
-	  break; 
+  // Case 5: Create a file
+  case SYS_CREATE:
+    f->eax = create(*(stack_p + 4), *(stack_p + 5));
+    break;
 
-	  // Case 6: Delete a file
-	  case SYS_REMOVE: 
-	  break; 
+  // Case 6: Delete a file
+  case SYS_REMOVE:
+    break;
 
-	  // Case 7: Open a file 
-	  case SYS_OPEN: 
-	  break; 
+  // Case 7: Open a file
+  case SYS_OPEN:
+    break;
 
-	  // Case 8: Obtain a files size
-	  case SYS_FILESIZE:
-	  break; 
+  // Case 8: Obtain a files size
+  case SYS_FILESIZE:
+    break;
 
-	  // Case 9: Read from a file 
-	  case SYS_READ:
-	  break; 
+  // Case 9: Read from a file
+  case SYS_READ:
+    break;
 
-	  // Case 10: Write to a file 
-	  case SYS_WRITE: 
-	  break; 
+  // Case 10: Write to a file
+  case SYS_WRITE:
+    break;
 
-	  // Case 11: Change a position in a file
-	  case SYS_SEEK: 
-	  break; 
+  // Case 11: Change a position in a file
+  case SYS_SEEK:
+    break;
 
-	  // Case 12: Report a current position in a file
-	  case SYS_TELL: 
-	  break; 
+  // Case 12: Report a current position in a file
+  case SYS_TELL:
+    break;
 
-	  // Case 13: Close a file
-	  case SYS_CLOSE: 
-	  break; 
+  // Case 13: Close a file
+  case SYS_CLOSE:
+    break;
 
-	  //~~~~~ Project 2 System Calls ~~~~~
-  	  // Default to exitting the process 
-	  default: 
-	  break; 
-  
+  //~~~~~ Project 2 System Calls ~~~~~
+  // Default to exitting the process
+  default:
+    break;
   }
-
-
-
 }
 
 void halt(void) {
@@ -133,8 +116,13 @@ void exit(int status) {
 
 pid_t exec(const char *cmd_line) {
   // Runs executable
-  // TODO:
-  return 0;
+  printf("exec(): executing!");
+
+  lock_acquire(&process_lock);
+  pid_t result = process_execute(cmd_line);
+  lock_release(&process_lock);
+
+  return result;
 }
 
 int wait(pid_t pid) {
@@ -160,7 +148,15 @@ bool create(const char *file, unsigned initial_size) {
 
 bool remove(const char *file) {
   // Deletes the file
-  // TODO:
+  printf("remove(): removing!");
+  if (file == NULL) {
+    return -1;
+  }
+
+  lock_acquire(&file_lock);
+  bool result = filesys_remove(file);
+  lock_release(&file_lock);
+  return result;
 }
 
 int open(const char *file) {
