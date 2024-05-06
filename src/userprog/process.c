@@ -154,17 +154,22 @@ start_process (void *file_name_)
   if_.eflags = FLAG_IF | FLAG_MBS;
   success = load (file_name, &if_.eip, &if_.esp, user_args, arg_count);
 
-  // unblock kernel thread
-  sema_up(&sem_load); 
-
   // NEW: Free allocated memory from up above
   free(user_args);
   user_args = NULL; 
 
   /* If load failed, quit. */
   palloc_free_page (file_name);
-  if (!success) 
+  if (!success){
+    thread_current()->exit_status = -1;
+    sema_up(&sem_load); 
     thread_exit ();
+  }
+
+
+  // unblock kernel thread
+  sema_up(&sem_load); 
+
 
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
@@ -422,7 +427,10 @@ load (const char *file_name, void (**eip) (void), void **esp, char **user_args, 
 
  done:
   /* We arrive here whether the load is successful or not. */
-  file_close (file);
+  if (success != true){
+    // NEW: If we failed to load the file, we close it, otherwise continue
+    file_close (file);
+  } 
   return success;
 }
 
