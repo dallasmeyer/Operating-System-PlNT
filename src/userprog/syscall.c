@@ -37,17 +37,88 @@ static void syscall_handler(struct intr_frame *f UNUSED) {
   // TODO: implement system call handler
 
   printf("system call!\n");
-  thread_exit();
 
   // Get stack pointer via "esp" of intr_frame
   int *stack_p = f->esp;
+
 
   // check if virtual address
   if (!is_user_vaddr(stack_p)) {
     printf("syscall_handler(): Not a virtual address!");
   }
 
-  // returned values go into "eax" register
+  // Dereference the stack pointer into the system call function number
+  int syscall_funct = *stack_p; 
+  // Dev print statement: 
+
+
+
+  switch(syscall_funct){
+  
+	  //~~~~~ Project 2 system calls ~~~~~
+	  // Case 1: halt the operating system 
+	  case SYS_HALT:
+	  printf("(syscall) syscall_funct is [SYS_HALT]\n"); 
+	  halt(); 
+	  break; 
+
+	  // Case 2: terminate this process
+	  case SYS_EXIT: 
+	  break; 
+	  
+	  // Case 3: Start another process
+	  case SYS_EXEC: 
+	  break; 
+
+	  // Case 4: Wait for a child process to die
+	  case SYS_WAIT: 
+	  break; 
+
+	  // Case 5: Create a file
+	  case SYS_CREATE: 
+	  break; 
+
+	  // Case 6: Delete a file
+	  case SYS_REMOVE: 
+	  break; 
+
+	  // Case 7: Open a file 
+	  case SYS_OPEN: 
+	  break; 
+
+	  // Case 8: Obtain a files size
+	  case SYS_FILESIZE:
+	  break; 
+
+	  // Case 9: Read from a file 
+	  case SYS_READ:
+	  break; 
+
+	  // Case 10: Write to a file 
+	  case SYS_WRITE: 
+	  break; 
+
+	  // Case 11: Change a position in a file
+	  case SYS_SEEK: 
+	  break; 
+
+	  // Case 12: Report a current position in a file
+	  case SYS_TELL: 
+	  break; 
+
+	  // Case 13: Close a file
+	  case SYS_CLOSE: 
+	  break; 
+
+	  //~~~~~ Project 2 System Calls ~~~~~
+  	  // Default to exitting the process 
+	  default: 
+	  break; 
+  
+  }
+
+
+
 }
 
 void halt(void) {
