@@ -571,7 +571,7 @@ setup_stack (void **esp, const char *user_prog, char **user_args, int arg_count)
 	        // Add the new address to argv
 		argv[i] = (char *) *esp; 	
 		// dev-print
-		//printf("        i: %d | esp: 0x%x | user_arg[%d]: %s\n", i, (uintptr_t)*esp, i, user_args[i]);
+		printf("        i: %d | esp: 0x%x | user_arg[%d]: %s\n", i, (uintptr_t)*esp, i, user_args[i]);
 	}
 	// dev-print
 	//printf("	args added to stack\n");
@@ -584,10 +584,10 @@ setup_stack (void **esp, const char *user_prog, char **user_args, int arg_count)
 	for(int j = arg_count-1; j >= 0; j--){
 		// Move the stack pointer down by the user arg ptr size
 		len = strlen(argv[j]);
-		*esp -= len; 
+		*esp -= sizeof(char *); 
 		// Copy the user arg ptr into the user virtual memory stack
-		memcpy(*esp,  argv[j], len);
-		//printf("        i: %d | esp: 0x%x | user_arg[%d]: %s\n", j, (uintptr_t)*esp, argv[j]);
+		memcpy(*esp,  argv[j], sizeof(char *));
+		printf("        i: %d | esp: 0x%x | user_arg[%d]: %s\n", j, (uintptr_t)*esp, argv[j]);
 	}
 	//printf("	Pushing final pieces\n");
 	// Push argv onto the stack
@@ -598,16 +598,20 @@ setup_stack (void **esp, const char *user_prog, char **user_args, int arg_count)
 	 // Find arg_count length  
 	len = snprintf(NULL,0, "%d", arg_count);
 	 // buffer arg_count into a string
-	char argc_str[len +1];
-	snprintf(argc_str, len+1, "%d", arg_count);
+	//char argc_str[len +1];
+	//snprintf(argc_str, len+1, "%d", arg_count);
 	 // push arg_count onto the stack
-	*esp -= len+1; 
-	memcpy(*esp, argc_str, len);
-
+	//*esp -= len+1; 
+	//memcpy(*esp, argc_str, len);
+	// Mod line 
+	*esp -= sizeof(int); 
+	memcpy(*esp, &arg_count, sizeof(int));
 
 	// Push fake return address 
 	*esp -= sizeof(void*); 
-	//printf("	finished...\n");
+	memcpy(*esp, &argv[arg_count], sizeof(void *)); 
+	printf("	finished...\n");
+	hex_dump(PHYS_BASE, *esp, PHYS_BASE-(*esp), true);
 	success = true;
 
       }
