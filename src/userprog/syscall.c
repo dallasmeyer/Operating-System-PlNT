@@ -9,6 +9,7 @@
 #include <syscall-nr.h>
 
 static void syscall_handler(struct intr_frame *);
+bool valid_addr(void * vaddr);
 
 // declaring the system calls
 // void halt(void);
@@ -33,25 +34,52 @@ void syscall_init(void) {
   lock_init(&file_lock);
 }
 
+bool valid_addr(void * vaddr){
+  // Check if the virtual address is in the user address space 
+  if (!is_user_vaddr(vaddr)) {
+      printf("invalid vaddr\n");
+      return false;
+  }
+  // Get the page directory of the current thread
+  struct thread *t = thread_current();
+  if (t == NULL || t->pagedir == NULL) {
+      printf("invalid thread/pagedir\n");
+      return false;
+  }
+  // Check if the page is to the correct virtual address
+  void *pagedir = t->pagedir;
+  if (pagedir_get_page(pagedir, vaddr) == NULL) {
+      printf("invalid page\n");
+      return false;
+  }
+  // Check if the virtual address is not a null pointer
+  if (vaddr == NULL) {
+      printf("Nonetype vaddr\n");
+      return false;
+  }
+  // Return true otherwise
+  printf("No issue found in vaddr\n");
+  return true;
+}
+
+
 static void syscall_handler(struct intr_frame *f UNUSED) {
   // TODO: implement system call handler
 
-  printf("system call!\n");
+  printf("(systcall) handler starting...\n");
 
   // Get stack pointer via "esp" of intr_frame
   int *stack_p = f->esp;
+  printf("Stack pointer in syscall_handler: 0x%x\n", (uintptr_t)f->esp);
 
 
   // check if virtual address
-  if (!is_user_vaddr(stack_p)) {
-    printf("syscall_handler(): Not a virtual address!");
+  if (!valid_addr(stack_p)) {
+    printf("syscall_handler(): Not a virtual address\n");
   }
 
   // Dereference the stack pointer into the system call function number
   int syscall_funct = *stack_p; 
-  // Dev print statement: 
-
-
 
   switch(syscall_funct){
   
@@ -111,7 +139,7 @@ static void syscall_handler(struct intr_frame *f UNUSED) {
 	  break; 
 
 	  //~~~~~ Project 2 System Calls ~~~~~
-  	  // Default to exitting the process 
+  	  // Default to exiting the process 
 	  default: 
 	  break; 
   
