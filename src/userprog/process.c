@@ -80,7 +80,7 @@ start_process (void *file_name_)
   bool success;
 
   // NEW: dev-print 
-  printf("~~~~~~~start_process~~~~~~~~\n");
+  printf("(args) begin\n");
   // NEW: parse the command line string
   char *save_ptr; 
   char *user_prog;
@@ -94,7 +94,7 @@ start_process (void *file_name_)
 
   } 
   // Dev-print
-  printf("	user_prog: [%s]\n", user_prog);
+  //printf("(args) [%s]\n", user_prog);
 
 
   // NEW: parse and save the user arguments
@@ -130,14 +130,22 @@ start_process (void *file_name_)
 	// Add 1 to total number of arguments
 	++arg_count;
 	// dev-print
-	printf("	arg_count: %d | token: [%s]\n", arg_count, token);
+	//printf("	arg_count: %d | token: [%s]\n", arg_count, token);
 	// Check for the next token
 	token = strtok_r(NULL, " ", &save_ptr);
   }
   // Null terminate user_args
   user_args[arg_count] = NULL;
   // dev-print
-  printf("	total arg_count: %d | total_size %lu \n", arg_count, arg_size);
+  //printf("	total arg_count: %d | total_size %lu \n", arg_count, arg_size);
+ 
+
+  // For loop to print out the user prog paraemters
+  printf("(args) argc = %d\n", arg_count); 
+  for(int i = 0; i < arg_count+1; i++){
+  	printf("(args) argv[%d] = '%s'\n", arg_count, user_args[i]); 
+  }; 
+
 
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
@@ -308,7 +316,7 @@ load (const char *file_name, void (**eip) (void), void **esp, char **user_args, 
   int i;
 
   // Dev-print
-  printf("~~~~~~~load()~~~~~~\n");
+  //printf("~~~~~~~load()~~~~~~\n");
   /* Allocate and activate page directory. */
   t->pagedir = pagedir_create ();
   if (t->pagedir == NULL) 
@@ -316,7 +324,7 @@ load (const char *file_name, void (**eip) (void), void **esp, char **user_args, 
   process_activate ();
 
   // dev-print
-  printf("	Opening executable file\n"); 
+  //printf("	Opening executable file\n"); 
   /* Open executable file. */
   file = filesys_open (file_name);
   if (file == NULL) 
@@ -326,7 +334,7 @@ load (const char *file_name, void (**eip) (void), void **esp, char **user_args, 
     }
 
   // dev-print
-  printf("	verifying headers\n");
+  //printf("	verifying headers\n");
   /* Read and verify executable header. */
   if (file_read (file, &ehdr, sizeof ehdr) != sizeof ehdr
       || memcmp (ehdr.e_ident, "\177ELF\1\1\1", 7)
@@ -336,12 +344,12 @@ load (const char *file_name, void (**eip) (void), void **esp, char **user_args, 
       || ehdr.e_phentsize != sizeof (struct Elf32_Phdr)
       || ehdr.e_phnum > 1024) 
     {
-      printf ("load: %s: error loading executable\n", file_name);
+      //printf ("load: %s: error loading executable\n", file_name);
       goto done; 
     }
 
   // dev-print 
-  printf("	Reading program headers\n");
+  //printf("	Reading program headers\n");
   /* Read program headers. */
   file_ofs = ehdr.e_phoff;
   for (i = 0; i < ehdr.e_phnum; i++) 
@@ -402,7 +410,7 @@ load (const char *file_name, void (**eip) (void), void **esp, char **user_args, 
     }
 
   // dev-print 
-  printf("	Calling to setup the stack\n");
+  //printf("	Calling to setup the stack\n");
   /* Set up stack. */
   if (!setup_stack (esp, file_name, user_args, arg_count))
     goto done;
@@ -538,7 +546,7 @@ setup_stack (void **esp, const char *user_prog, char **user_args, int arg_count)
   if (kpage != NULL) 
     {
       // Dev-print 
-      printf("~~~~~~~Setup_Stack()~~~~~~~\n"); 
+      //printf("~~~~~~~Setup_Stack()~~~~~~~\n"); 
       // Install page into users virtual address space
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
       if (success){
@@ -546,7 +554,7 @@ setup_stack (void **esp, const char *user_prog, char **user_args, int arg_count)
         // Allign it at the same time
 	*esp = (void *)((uintptr_t)PHYS_BASE & ~0x3);
 	// Dev-print
-	printf("	esp aligned to [0x%x]\n", (uintptr_t)*esp);
+	//printf("	esp aligned to [0x%x]\n", (uintptr_t)*esp);
 
 	// Calculate # of user argument pointers we will push to the stack
 	// and create a user argument ptr holder argv
@@ -563,10 +571,10 @@ setup_stack (void **esp, const char *user_prog, char **user_args, int arg_count)
 	        // Add the new address to argv
 		argv[i] = (char *) *esp; 	
 		// dev-print
-		printf("        i: %d | esp: 0x%x | user_arg[%d]: %s\n", i, (uintptr_t)*esp, i, user_args[i]);
+		//printf("        i: %d | esp: 0x%x | user_arg[%d]: %s\n", i, (uintptr_t)*esp, i, user_args[i]);
 	}
 	// dev-print
-	printf("	args added to stack\n");
+	//printf("	args added to stack\n");
 	//argv[arg_count] = NULL; // Null pointer sentinel
 	// Add the null pointer sentinel to the user virtual stack 
 	*esp -= sizeof(char *); 
@@ -579,9 +587,9 @@ setup_stack (void **esp, const char *user_prog, char **user_args, int arg_count)
 		*esp -= len; 
 		// Copy the user arg ptr into the user virtual memory stack
 		memcpy(*esp,  argv[j], len);
-		printf("        i: %d | esp: 0x%x | user_arg[%d]: %s\n", j, (uintptr_t)*esp, argv[j]);
+		//printf("        i: %d | esp: 0x%x | user_arg[%d]: %s\n", j, (uintptr_t)*esp, argv[j]);
 	}
-	printf("	Pushing final pieces\n");
+	//printf("	Pushing final pieces\n");
 	// Push argv onto the stack
 	len = sizeof(char **); 
 	*esp -= len;
@@ -599,7 +607,7 @@ setup_stack (void **esp, const char *user_prog, char **user_args, int arg_count)
 
 	// Push fake return address 
 	*esp -= sizeof(void*); 
-	printf("	finished...\n");
+	//printf("	finished...\n");
 	success = true;
 
       }
