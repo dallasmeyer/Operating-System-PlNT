@@ -295,7 +295,7 @@ struct Elf32_Phdr
 #define PF_W 2          /**< Writable. */
 #define PF_R 4          /**< Readable. */
 
-static bool setup_stack (void **esp, const char *user_prog, char **user_args, int arg_count); 
+static bool setup_stack (void **esp, char **user_args, int arg_count); 
 static bool validate_segment (const struct Elf32_Phdr *, struct file *);
 static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
                           uint32_t read_bytes, uint32_t zero_bytes,
@@ -412,7 +412,7 @@ load (const char *file_name, void (**eip) (void), void **esp, char **user_args, 
   // dev-print 
   //printf("	Calling to setup the stack\n");
   /* Set up stack. */
-  if (!setup_stack (esp, file_name, user_args, arg_count))
+  if (!setup_stack (esp, user_args, arg_count))
     goto done;
 
   /* Start address. */
@@ -425,7 +425,8 @@ load (const char *file_name, void (**eip) (void), void **esp, char **user_args, 
   file_close (file);
   return success;
 }
-
+
+
 /** load() helpers. */
 
 static bool install_page (void *upage, void *kpage, bool writable);
@@ -536,76 +537,75 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 
 /** Create a minimal stack by mapping a zeroed page at the top of
    user virtual memory. */
-static bool
-setup_stack (void **esp, const char *user_prog, char **user_args, int arg_count) 
-{
-  uint8_t *kpage;
-  bool success = false;
+static bool setup_stack(void **esp, char **user_args, int arg_count) {
+    uint8_t *kpage;
+    bool success = false;
 
-  kpage = palloc_get_page (PAL_USER | PAL_ZERO);
-  if (kpage != NULL) 
-    {
-      // Inscctall page into users virtual address space
-      success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
-      if (success){
-	// Initialize the stack pointer to PHYS_BASE (top of page)
-        // Allign it at the same time
-	*esp = (void *)((uintptr_t)PHYS_BASE & ~0x3);
+    kpage = palloc_get_page(PAL_USER | PAL_ZERO);
+    if (kpage != NULL) {
+        // Install page into the user's virtual address space
+        success = install_page(((uint8_t *)PHYS_BASE) - PGSIZE, kpage, true);
+        if (success) {
+            // Initialize the stack pointer to PHYS_BASE (top of page)
+            *esp = PHYS_BASE;
 
-	// Calculate # of user argument pointers we will push to the stack
-	// and create a user argument ptr holder argv
-	// +1 for null pointer sentinel
-	char *argv[arg_count+1]; 
-	//Push user program arguments onto user virtual stack
-	int len;
-	for(int i = arg_count-1; i >= 0; i--){
-		// Move the stack pointer down by the user arg being pushed
-		len = strlen(user_args[i]) + 1;
-		*esp -= len; 
-		// Copy the user arg into the user virtual memory stack
-		memcpy(*esp, user_args[i], len); 
-	        // Add the new address to argv
-		argv[i] = (char *) *esp; 	
-		// dev-print
-		printf("        i: %d | esp: 0x%x | user_arg[%d]: %s\n", i, (uintptr_t)*esp, i, user_args[i]);
-	}
+            // Create a new array to hold the ptr addresses of user arguments
+            char **argv = malloc((arg_count + 1) * sizeof(char *));
+            if (argv == NULL) {
+                // If fail to alloacte, free and give up
+                palloc_free_page(kpage);
+                return false;
+            }
 
-	// Add the null pointer sentinel to the user virtual stack 
-	*esp -= sizeof(char *); 
-	*((char **)*esp) = NULL; 
+            // Step 1: Push user program arguments onto user virtual memory space
+            size_t len = 0;
+            for (int i = arg_count - 1; i >= 0; i--) {
+                len = strlen(user_args[i]) + 1; 
+                *esp -= len;
+                memcpy(*esp, user_args[i], len);
+                argv[i] = *esp; 
+                printf("  i: %d | esp: 0x%x | user_arg[%d]: %s\n", i, (uintptr_t)*esp, i, user_args[i]);
+            }
 
-	// Push user program addresses onto user virtual stack
-	for(int j = arg_count-1; j >= 0; j--){
-		// Move the stack pointer down by the user arg ptr size
-		len = strlen(argv[j]);
-		*esp -= sizeof(char *); 
-		// Copy the user arg ptr into the user virtual memory stack
-		memcpy(*esp,  argv[j], sizeof(char *));
-		printf("        i: %d | esp: 0x%x | user_arg[%d]: %s\n", j, (uintptr_t)*esp, argv[j]);
-	}
-	//printf("	Pushing final pieces\n");
-	// Push argv onto the stack
-	len = sizeof(char **); 
-	*esp -= len;
-	memcpy(*esp, argv, len);
-	// Push argc onto the stack
-	*esp -= sizeof(int); 
-	memcpy(*esp, &arg_count, sizeof(int));
+            // Step 2: Push the addresses of user program arguments onto user virtual memory space
+            len = sizeof(char *);
+            for (int j = arg_count; j >= 0; j--) {
+                *esp -= len; 
+                memcpy(*esp, &argv[j], len);
+                printf("  j: %d | esp: 0x%x | argv[%d]: %s\n", j, (uintptr_t)*esp, j, user_args[j]);
+            }
 
-	// Push fake return address 
-	*esp -= sizeof(void*); 
-	memcpy(*esp, &argv[arg_count], sizeof(void *)); 
-	printf("	finished...\n");
-	hex_dump(PHYS_BASE, *esp, PHYS_BASE-(*esp), true);
-	success = true;
+            // Step 3: Push argv[0] then push arg_count
+            len = sizeof(char **);
+            if (*esp != argv[0]) {
+                *esp -= len;
+                memcpy(*esp, &argv[0], len);
+                printf("Pushed address of argv[0] at address 0x%x\n", (uintptr_t)*esp);
+            }
+            *esp -= sizeof(int);
+            memcpy(*esp, &arg_count, sizeof(int));
+            printf("Pushed argc (%d) at address 0x%x\n", arg_count, (uintptr_t)*esp);
 
-      }
-      else{
-      	// else, issue installing page, free it  
-	palloc_free_page (kpage);
-      }
+            // Step 4: Push a fake return address
+            *esp -= sizeof(void *);
+            memcpy(*esp, &argv[arg_count], sizeof(void *));
+            printf("Pushed fake return address at address 0x%x\n", (uintptr_t)*esp);
+
+            // Step 5 (optional): Print out a hex dump for debugging
+            printf("Finished setting up the stack\n");
+            hex_dump((uintptr_t)*esp, *esp, PHYS_BASE - (uintptr_t)*esp, true);
+
+            // Cleanup allocated memory
+            free(argv);
+
+            success = true;
+        } else {
+            // Issue installing page, free it
+            palloc_free_page(kpage);
+        }
     }
-  return success;
+
+    return success;
 }
 
 /** Adds a mapping from user virtual address UPAGE to kernel
