@@ -12,10 +12,12 @@ static void syscall_handler(struct intr_frame *);
 
 // structs
 struct lock file_lock;
+struct lock process_lock;
 
 void syscall_init(void) {
   intr_register_int(0x30, 3, INTR_ON, syscall_handler, "syscall");
   lock_init(&file_lock);
+  lock_init(&process_lock);
 }
 
 static void syscall_handler(struct intr_frame *f UNUSED) {
@@ -46,8 +48,7 @@ static void syscall_handler(struct intr_frame *f UNUSED) {
 
   // Case 2: terminate this process
   case SYS_EXIT:
-    exit();
-    thread_exit();
+    exit(0);
     break;
 
   // Case 3: Start another process
@@ -82,8 +83,15 @@ static void syscall_handler(struct intr_frame *f UNUSED) {
     break;
 
   // Case 10: Write to a file
-  case SYS_WRITE:
+  case SYS_WRITE: {
+    // setting file parameters
+    int fd = *(stack_p + 5);
+    const char *buffer = (const char *)*(stack_p + 6);
+    unsigned length = *(stack_p + 7);
+
+    f->eax = write(fd, buffer, length);
     break;
+  }
 
   // Case 11: Change a position in a file
   case SYS_SEEK:
@@ -111,7 +119,8 @@ void halt(void) {
 
 void exit(int status) {
   // Terminates current user program
-  // TODO:
+  // FIXME: Need to implement parent and child wait
+  thread_exit();
 }
 
 pid_t exec(const char *cmd_line) {
@@ -176,7 +185,22 @@ int read(int fd, void *buffer, unsigned size) {
   return 0;
 }
 
-// int write (int fd, const void *buffer, unsigned size)
+int write(int fd, const void *buffer, unsigned size) {
+  // Writes size bytes from buffer to file descriptor, fd.
+  // Idea: try and write all of the all of buffer to console in a single call.
+
+  // Check if console out, as fd = 1 for console writes.
+  if (fd == 1) {
+    // don't need to lock, since putbuf has locks
+    putbuf(buffer, size);
+    return size;
+  }
+
+  // FIXME: implement getting file and writing
+  // struct file f_inst =
+
+  return 0;
+}
 // void seek (int fd, unsigned position);
 // unsigned tell (int fd);
 // void close (int fd);
