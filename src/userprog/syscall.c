@@ -76,6 +76,8 @@ static void syscall_handler(struct intr_frame *f UNUSED) {
   // check if virtual address
   if (!valid_addr(stack_p)) {
     printf("syscall_handler(): Not a virtual address\n");
+    exit(-1);
+    return;
   }
 
   // Dereference the stack pointer into the system call function number
@@ -158,9 +160,6 @@ static void syscall_handler(struct intr_frame *f UNUSED) {
 	  break; 
   
   }
-
-
-
 }
 
 void halt(void) {
