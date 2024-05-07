@@ -24,6 +24,8 @@ typedef int mapid_t;
 #define EXIT_FAILURE 1          /**< Unsuccessful execution. */
 
 /** Projects 2 and later. */
+struct lock file_lock;
+
 void halt (void);
 void exit (int status);
 pid_t exec (const char *file);
