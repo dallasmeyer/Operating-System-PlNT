@@ -99,55 +99,62 @@ static void syscall_handler(struct intr_frame *f UNUSED) {
 	  // Case 5: Create a file
 	  case SYS_CREATE: 
       debug_printf("(syscall) syscall_funct is [SYS_CREATE]\n");
+      debug_printf("s1:%s,s2:%u,s3:%u,s4:%u\n", *(stack_p+1), *(stack_p+2), *(stack_p+3), *(stack_p+4));
       if (!valid_addr(*(stack_p+1)) || !valid_addr(*(stack_p+2))) {
         debug_printf("create(): invalid pointers!\n");
         exit(-1);
         return;
       }
+
+      const char * file = *(stack_p+1);
+      unsigned size = *(stack_p+2);
       
-      create((const char *) *(stack_p+1), *(stack_p+2));
+      bool result = create(file,size);
+      if (!result) { // FIXME: may need to verify
+        exit(-1);
+      }
       break; 
 
 	  // Case 6: Delete a file
 	  case SYS_REMOVE: 
-    debug_printf("(syscall) syscall_funct is [SYS_REMOVE]\n");
-    remove(*(stack_p+1));
-	  break; 
+      debug_printf("(syscall) syscall_funct is [SYS_REMOVE]\n");
+      remove(*(stack_p+1));
+      break; 
 
 	  // Case 7: Open a file 
 	  case SYS_OPEN: 
-    debug_printf("(syscall) syscall_funct is [SYS_OPEN]\n");
-	  break; 
+      debug_printf("(syscall) syscall_funct is [SYS_OPEN]\n");
+      break; 
 
 	  // Case 8: Obtain a files size
 	  case SYS_FILESIZE:
-    debug_printf("(syscall) syscall_funct is [SYS_FILESIZE]\n");
-	  break; 
+      debug_printf("(syscall) syscall_funct is [SYS_FILESIZE]\n");
+      break; 
 
 	  // Case 9: Read from a file 
 	  case SYS_READ:
-    debug_printf("(syscall) syscall_funct is [SYS_READ]\n");
-	  break; 
+      debug_printf("(syscall) syscall_funct is [SYS_READ]\n");
+      break; 
 
 	  // Case 10: Write to a file 
 	  case SYS_WRITE: 
-    debug_printf("(syscall) syscall_funct is [SYS_WRITE]\n");
-	  break; 
+      debug_printf("(syscall) syscall_funct is [SYS_WRITE]\n");
+      break; 
 
 	  // Case 11: Change a position in a file
 	  case SYS_SEEK: 
-    debug_printf("(syscall) syscall_funct is [SYS_SEEK]\n");
-	  break; 
+      debug_printf("(syscall) syscall_funct is [SYS_SEEK]\n");
+      break; 
 
 	  // Case 12: Report a current position in a file
 	  case SYS_TELL:
-    debug_printf("(syscall) syscall_funct is [SYS_TELL]\n"); 
-	  break; 
+      debug_printf("(syscall) syscall_funct is [SYS_TELL]\n"); 
+      break; 
 
 	  // Case 13: Close a file
 	  case SYS_CLOSE: 
-    debug_printf("(syscall) syscall_funct is [SYS_CLOSE]\n");
-	  break; 
+      debug_printf("(syscall) syscall_funct is [SYS_CLOSE]\n");
+      break; 
 
 	  //~~~~~ Project 2 System Calls ~~~~~
   	  // Default to exiting the process 
@@ -199,12 +206,11 @@ bool create(const char *file, unsigned initial_size) {
 
   // using locks to prevent race conditions
   // debug_printf("create(): attempting to acquire file lock!\n");
-  // lock_acquire(&file_lock);
+  lock_acquire(&file_lock);
   char * saveptr;
   printf("(%s) create %s\n",strtok_r(cur->name, " ", saveptr),file);
   int result = filesys_create(file, initial_size);
-  
-  // lock_release(&file_lock);
+  lock_release(&file_lock);
   // debug_printf("create(): released file lock!\n");
   
   return result;
