@@ -80,7 +80,7 @@ start_process (void *file_name_)
   bool success;
 
   // NEW: dev-print 
-  printf("(args) begin\n");
+  // printf("(args) begin\n");
   // NEW: parse the command line string
   char *save_ptr; 
   char *user_prog;
@@ -95,6 +95,12 @@ start_process (void *file_name_)
   } 
   // Dev-print
   //printf("(args) [%s]\n", user_prog);
+  // Added begin print that checks if args operation
+  if (strstr(user_prog, "args") != NULL) {
+    printf("(args) begin\n");
+  } else {
+    printf("(%s) begin\n", user_prog);
+  }
 
 
   // NEW: parse and save the user arguments
@@ -141,9 +147,16 @@ start_process (void *file_name_)
  
 
   // For loop to print out the user prog paraemters
-  printf("(args) argc = %d\n", arg_count); 
+  if (strstr(user_prog, "args") != NULL) printf("(args) argc = %d\n", arg_count); 
+  
   for(int i = 0; i < arg_count+1; i++){
-  	printf("(args) argv[%d] = '%s'\n", arg_count, user_args[i]); 
+    if (strstr(user_prog, "args") != NULL) {
+      if (user_args[i]) {
+        printf("(args) argv[%d] = '%s'\n", i, user_args[i]); 
+      } else {
+        printf("(args) argv[%d] = null\n", i); 
+      }
+    }
   }; 
 
 
@@ -154,6 +167,12 @@ start_process (void *file_name_)
   if_.eflags = FLAG_IF | FLAG_MBS;
   success = load (file_name, &if_.eip, &if_.esp, user_args, arg_count);
 
+
+  // Added begin print that checks if args operation
+  if (strstr(user_prog, "args") != NULL) {
+    printf("(args) end\n");
+  }
+  
   // NEW: Free allocated memory from up above
   free(user_args);
   user_args = NULL; 
@@ -204,7 +223,8 @@ process_exit (void)
   uint32_t *pd;
 
   // Print the exit message 
-  printf("%s: exit(%d)\n",cur->name,cur->exit_status);
+  char * saveptr;
+  printf("%s: exit(%d)\n",strtok_r(cur->name, " ", saveptr),cur->exit_status);
   
   
   /* Destroy the current process's page directory and switch back
