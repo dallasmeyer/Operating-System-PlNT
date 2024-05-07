@@ -4,6 +4,7 @@
 #include <debug.h>
 #include <list.h>
 #include <stdint.h>
+#include "synch.h"
 
 /** States in a thread's life cycle. */
 enum thread_status
@@ -101,10 +102,26 @@ struct thread
 
     // NEW: exit status code
     int exit_status; 
+    
+    
+    // NEW: Used for communicating between parent and children threads
+    struct thread *parent;
+    struct semaphore sem_child_load;
+    struct semaphore sem_child_wait;
+    struct list child_list; 
 
     /* Owned by thread.c. */
     unsigned magic;                     /**< Detects stack overflow. */
   };
+
+// NEW: struct type to allow for threads to have children process threads
+struct child{
+   tid_t tid;                 // Child threads identifier
+   struct list_elem child_elem;    // list element of child
+}; 
+
+
+
 
 /** If false (default), use round-robin scheduler.
    If true, use multi-level feedback queue scheduler.
