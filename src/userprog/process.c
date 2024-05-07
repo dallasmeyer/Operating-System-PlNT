@@ -560,48 +560,40 @@ static bool setup_stack(void **esp, char **user_args, int arg_count) {
             // Create a new array to hold the ptr addresses of user arguments
             char **argv = malloc((arg_count + 1) * sizeof(char *));
             if (argv == NULL) {
-                // If fail to alloacte, free and give up
+                // If fail to allocate, free and give up
                 palloc_free_page(kpage);
                 return false;
             }
 
-            // Step 1: Push user program arguments onto user virtual memory space
-            size_t len = 0;
+            // Push the addresses of user program arguments onto user virtual memory space
             for (int i = arg_count - 1; i >= 0; i--) {
-                len = strlen(user_args[i]) + 1; 
-                *esp -= len;
-                memcpy(*esp, user_args[i], len);
-                argv[i] = *esp; 
-                printf("  i: %d | esp: 0x%x | user_arg[%d]: %s\n", i, (uintptr_t)*esp, i, user_args[i]);
+                *esp -= strlen(user_args[i]) + 1;
+                memcpy(*esp, user_args[i], strlen(user_args[i]) + 1);
+                argv[i] = *esp;
             }
 
-            // Step 2: Push the addresses of user program arguments onto user virtual memory space
-            len = sizeof(char *);
-            for (int j = arg_count; j >= 0; j--) {
-                *esp -= len; 
-                memcpy(*esp, &argv[j], len);
-                printf("  j: %d | esp: 0x%x | argv[%d]: %s\n", j, (uintptr_t)*esp, j, user_args[j]);
-            }
+            // Word-align the stack pointer
+            *esp -= (uintptr_t)(*esp) % 4;
 
-            // Step 3: Push argv[0] then push arg_count
-            len = sizeof(char **);
-            if (*esp != argv[0]) {
-                *esp -= len;
-                memcpy(*esp, &argv[0], len);
-                printf("Pushed address of argv[0] at address 0x%x\n", (uintptr_t)*esp);
+            // Null-terminate argv
+            argv[arg_count] = NULL;
+
+            // Push the addresses of argv[0] and argc onto the stack
+            *esp -= sizeof(char *);
+            memcpy(*esp, &argv[arg_count], sizeof(char *));
+            for (int j = arg_count - 1; j >= 0; j--) {
+                *esp -= sizeof(char *);
+                memcpy(*esp, &argv[j], sizeof(char *));
             }
+            char **argv_start = *esp;
+            *esp -= sizeof(char **);
+            memcpy(*esp, &argv_start, sizeof(char **));
             *esp -= sizeof(int);
             memcpy(*esp, &arg_count, sizeof(int));
-            printf("Pushed argc (%d) at address 0x%x\n", arg_count, (uintptr_t)*esp);
 
-            // Step 4: Push a fake return address
+            // Push a fake return address
             *esp -= sizeof(void *);
-            memcpy(*esp, &argv[arg_count], sizeof(void *));
-            printf("Pushed fake return address at address 0x%x\n", (uintptr_t)*esp);
-
-            // Step 5 (optional): Print out a hex dump for debugging
-            printf("Finished setting up the stack\n");
-            hex_dump((uintptr_t)*esp, *esp, PHYS_BASE - (uintptr_t)*esp, true);
+            *((uintptr_t *)*esp) = 0;
 
             // Cleanup allocated memory
             free(argv);
