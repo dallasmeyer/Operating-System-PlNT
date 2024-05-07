@@ -2,7 +2,6 @@
 #include "devices/shutdown.h"
 #include "filesys/filesys.h"
 #include "threads/interrupt.h"
-#include "threads/synch.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
 #include <stdio.h>
@@ -11,9 +10,6 @@
 static void syscall_handler(struct intr_frame *);
 bool valid_addr(void * vaddr);
 
-// structs
-struct lock file_lock;
-struct lock process_lock;
 
 void syscall_init(void) {
   intr_register_int(0x30, 3, INTR_ON, syscall_handler, "syscall");
@@ -77,11 +73,6 @@ static void syscall_handler(struct intr_frame *f UNUSED) {
   case SYS_HALT:
     printf("(syscall) syscall_funct is [SYS_HALT]\n");
     halt();
-    break;
-
-  // Case 2: terminate this process
-  case SYS_EXIT:
-    exit(0);
     break;
 
 	  // Case 2: terminate this process
