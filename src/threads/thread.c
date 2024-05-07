@@ -16,8 +16,8 @@
 #endif
 
 // Toggleable debugger
-#define debug_printf(fmt, ...) printf(fmt, ##__VA_ARGS__)
-//#define debug_printf(fmt, ...) // Define as empty if debugging is disabled
+//#define debug_printf(fmt, ...) printf(fmt, ##__VA_ARGS__)
+#define debug_printf(fmt, ...) // Define as empty if debugging is disabled
 
 /** Random value for struct thread's `magic' member.
    Used to detect stack overflow.  See the big comment at the top

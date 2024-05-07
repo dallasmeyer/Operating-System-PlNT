@@ -18,9 +18,13 @@
 #include "threads/thread.h"
 #include "threads/vaddr.h"
 
-#define debug_printf(fmt, ...) printf(fmt, ##__VA_ARGS__)
-//#define debug_printf(fmt, ...) // Define as empty if debugging is disabled
+// Higher level debugger
+//#define debug_printf(fmt, ...) printf(fmt, ##__VA_ARGS__)
+#define debug_printf(fmt, ...) // Uncomment to turn debugger off and comment above
 //debug_printf("()\n");
+// Deeper level debugger
+//#define debug_extra_printf(fmt, ...) printf(fmt, ##__VA_ARGS__)
+#define debug_extra_printf(fmt, ...) // Uncomment to turn debugger off and comment above
 
 // NEW: for synchronizations
 #include "threads/synch.h"
@@ -50,10 +54,6 @@ process_execute (const char *file_name)
   strlcpy (fn_copy, file_name, PGSIZE);
 
 
-  // dev-print NEW: print statement for seeing what file_name is
-  //printf("process_execute: %s\n", fn_copy);
-
-
   /* Create a new thread to execute FILE_NAME. */
   // NEW: dev-print
   debug_printf("(process_execute) creating thread process...\n");
@@ -79,8 +79,6 @@ start_process (void *file_name_)
   struct intr_frame if_;
   bool success;
 
-  // NEW: dev-print 
-  // printf("(args) begin\n");
   // NEW: parse the command line string
   char *save_ptr; 
   char *user_prog;
@@ -93,8 +91,6 @@ start_process (void *file_name_)
 	return;
 
   } 
-  // Dev-print
-  //printf("(args) [%s]\n", user_prog);
   // Added begin print that checks if args operation
   if (strstr(user_prog, "args") != NULL) {
     printf("(args) begin\n");
@@ -136,15 +132,14 @@ start_process (void *file_name_)
 	user_args[arg_count] = token;
 	// Add 1 to total number of arguments
 	++arg_count;
-	// dev-print
-	//printf("	arg_count: %d | token: [%s]\n", arg_count, token);
+	debug_extra_printf("	arg_count: %d | token: [%s]\n", arg_count, token);
 	// Check for the next token
 	token = strtok_r(NULL, " ", &save_ptr);
   }
   // Null terminate user_args
   user_args[arg_count] = NULL;
   // dev-print
-  //printf("	total arg_count: %d | total_size %lu \n", arg_count, arg_size);
+  debug_extra_printf("	total arg_count: %d | total_size %lu \n", arg_count, arg_size);
  
 
   // For loop to print out the user prog paraemters
@@ -238,7 +233,6 @@ process_exit (void)
     // Delete the list element and the child
     list_remove(elem_c); 
     free(c_t);
-    debug_printf("killed, ");
   }
   debug_printf("(process_exit) Child threads destroyed\n");  
   
