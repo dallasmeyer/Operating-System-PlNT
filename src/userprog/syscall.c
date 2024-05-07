@@ -9,6 +9,7 @@
 #include <syscall-nr.h>
 
 static void syscall_handler(struct intr_frame *);
+bool valid_addr(void * vaddr);
 
 // structs
 struct lock file_lock;
@@ -20,17 +21,49 @@ void syscall_init(void) {
   lock_init(&process_lock);
 }
 
+bool valid_addr(void * vaddr){
+  // Check if the virtual address is in the user address space 
+  if (!is_user_vaddr(vaddr)) {
+      printf("invalid vaddr\n");
+      return false;
+  }
+  // Get the page directory of the current thread
+  struct thread *t = thread_current();
+  if (t == NULL || t->pagedir == NULL) {
+      printf("invalid thread/pagedir\n");
+      return false;
+  }
+  // Check if the page is to the correct virtual address
+  void *pagedir = t->pagedir;
+  if (pagedir_get_page(pagedir, vaddr) == NULL) {
+      printf("invalid page\n");
+      return false;
+  }
+  // Check if the virtual address is not a null pointer
+  if (vaddr == NULL) {
+      printf("Nonetype vaddr\n");
+      return false;
+  }
+  // Return true otherwise
+  printf("No issue found in vaddr\n");
+  return true;
+}
+
+
 static void syscall_handler(struct intr_frame *f UNUSED) {
   // TODO: implement system call handler
 
-  printf("system call!\n");
+  printf("(systcall) handler starting...\n");
 
   // Get stack pointer via "esp" of intr_frame
   int *stack_p = f->esp;
+  printf("Stack pointer in syscall_handler: 0x%x\n", (uintptr_t)f->esp);
 
   // check if virtual address
-  if (!is_user_vaddr(stack_p)) {
-    printf("syscall_handler(): Not a virtual address!");
+  if (!valid_addr(stack_p)) {
+    printf("syscall_handler(): Not a virtual address\n");
+    exit(-1);
+    return;
   }
 
   // Dereference the stack pointer into the system call function number
@@ -51,65 +84,73 @@ static void syscall_handler(struct intr_frame *f UNUSED) {
     exit(0);
     break;
 
-  // Case 3: Start another process
-  case SYS_EXEC:
-    f->eax = exec(*(stack_p + 1));
-    break;
+	  // Case 2: terminate this process
+	  case SYS_EXIT: 
+    printf("(syscall) syscall_funct is [SYS_EXIT]\n");
+	  break; 
+	  
+	  // Case 3: Start another process
+	  case SYS_EXEC: 
+    printf("(syscall) syscall_funct is [SYS_EXEC]\n");
+	  break; 
 
-  // Case 4: Wait for a child process to die
-  case SYS_WAIT:
-    // wait();
-    break;
+	  // Case 4: Wait for a child process to die
+	  case SYS_WAIT: 
+    printf("(syscall) syscall_funct is [SYS_WAIT]\n");
+	  break; 
 
-  // Case 5: Create a file
-  case SYS_CREATE:
-    f->eax = create(*(stack_p + 4), *(stack_p + 5));
-    break;
+	  // Case 5: Create a file
+	  case SYS_CREATE: 
+    printf("(syscall) syscall_funct is [SYS_CREATE]\n");
+	  break; 
 
-  // Case 6: Delete a file
-  case SYS_REMOVE:
-    remove(*(stack_p + 4));
-    break;
+	  // Case 6: Delete a file
+	  case SYS_REMOVE: 
+    printf("(syscall) syscall_funct is [SYS_REMOVE]\n");
+	  break; 
 
-  // Case 7: Open a file
-  case SYS_OPEN:
-    break;
+	  // Case 7: Open a file 
+	  case SYS_OPEN: 
+    printf("(syscall) syscall_funct is [SYS_OPEN]\n");
+	  break; 
 
-  // Case 8: Obtain a files size
-  case SYS_FILESIZE:
-    break;
+	  // Case 8: Obtain a files size
+	  case SYS_FILESIZE:
+    printf("(syscall) syscall_funct is [SYS_FILESIZE]\n");
+	  break; 
 
-  // Case 9: Read from a file
-  case SYS_READ:
-    break;
+	  // Case 9: Read from a file 
+	  case SYS_READ:
+    printf("(syscall) syscall_funct is [SYS_READ]\n");
+	  break; 
 
-  // Case 10: Write to a file
-  case SYS_WRITE: {
-    // setting file parameters
-    int fd = *(stack_p + 5);
-    const char *buffer = (const char *)*(stack_p + 6);
-    unsigned length = *(stack_p + 7);
+	  // Case 10: Write to a file 
+	  case SYS_WRITE: 
+    printf("(syscall) syscall_funct is [SYS_WRITE]\n");
+	  break; 
 
-    f->eax = write(fd, buffer, length);
-    break;
-  }
+	  // Case 11: Change a position in a file
+	  case SYS_SEEK: 
+    printf("(syscall) syscall_funct is [SYS_SEEK]\n");
+	  break; 
 
-  // Case 11: Change a position in a file
-  case SYS_SEEK:
-    break;
+	  // Case 12: Report a current position in a file
+	  case SYS_TELL:
+    printf("(syscall) syscall_funct is [SYS_TELL]\n"); 
+	  break; 
 
-  // Case 12: Report a current position in a file
-  case SYS_TELL:
-    break;
+	  // Case 13: Close a file
+	  case SYS_CLOSE: 
+    printf("(syscall) syscall_funct is [SYS_CLOSE]\n");
+	  break; 
 
-  // Case 13: Close a file
-  case SYS_CLOSE:
-    break;
-
-  //~~~~~ Project 2 System Calls ~~~~~
-  // Default to exitting the process
-  default:
-    break;
+	  //~~~~~ Project 2 System Calls ~~~~~
+  	  // Default to exiting the process 
+	  default: 
+    printf("(syscall) syscall_funct is DEFAULT [SYS_EXT]\n");
+    exit(-1);
+	  break; 
+  
   }
 }
 
@@ -120,7 +161,9 @@ void halt(void) {
 
 void exit(int status) {
   // Terminates current user program
-  // FIXME: Need to implement parent and child wait
+  // TODO:
+
+  thread_current()->exit_status = status;
   thread_exit();
 }
 

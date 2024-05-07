@@ -9,6 +9,8 @@ void syscall_init (void);
 typedef int pid_t;
 
 /** Projects 2 and later. */
+struct lock file_lock;
+
 void halt (void);
 void exit (int status);
 pid_t exec (const char *file);

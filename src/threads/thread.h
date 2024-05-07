@@ -99,6 +99,9 @@ struct thread
     uint32_t *pagedir;                  /**< Page directory. */
 #endif
 
+    // NEW: exit status code
+    int exit_status; 
+
     /* Owned by thread.c. */
     unsigned magic;                     /**< Detects stack overflow. */
   };
