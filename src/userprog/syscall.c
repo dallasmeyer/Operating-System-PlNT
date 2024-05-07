@@ -82,28 +82,36 @@ static void syscall_handler(struct intr_frame *f UNUSED) {
 
 	  // Case 2: terminate this process
 	  case SYS_EXIT: 
-    // debug_printf("(syscall) syscall_funct is [SYS_EXIT]\n");
-    exit(*(stack_p+1));
-	  break; 
+      debug_printf("(syscall) syscall_funct is [SYS_EXIT]\n");
+      exit(*(stack_p+1));
+      break; 
 	  
 	  // Case 3: Start another process
 	  case SYS_EXEC: 
-    debug_printf("(syscall) syscall_funct is [SYS_EXEC]\n");
-	  break; 
+      debug_printf("(syscall) syscall_funct is [SYS_EXEC]\n");
+      break; 
 
 	  // Case 4: Wait for a child process to die
 	  case SYS_WAIT: 
-    debug_printf("(syscall) syscall_funct is [SYS_WAIT]\n");
-	  break; 
+      debug_printf("(syscall) syscall_funct is [SYS_WAIT]\n");
+      break; 
 
 	  // Case 5: Create a file
 	  case SYS_CREATE: 
-    debug_printf("(syscall) syscall_funct is [SYS_CREATE]\n");
-	  break; 
+      debug_printf("(syscall) syscall_funct is [SYS_CREATE]\n");
+      if (!valid_addr(*(stack_p+1)) || !valid_addr(*(stack_p+2))) {
+        debug_printf("create(): invalid pointers!\n");
+        exit(-1);
+        return;
+      }
+      
+      create((const char *) *(stack_p+1), *(stack_p+2));
+      break; 
 
 	  // Case 6: Delete a file
 	  case SYS_REMOVE: 
     debug_printf("(syscall) syscall_funct is [SYS_REMOVE]\n");
+    remove(*(stack_p+1));
 	  break; 
 
 	  // Case 7: Open a file 
@@ -183,14 +191,22 @@ int wait(pid_t pid) {
 bool create(const char *file, unsigned initial_size) {
   // Creates a new file
   // file: file name, initial_size: size in bytes
+  struct thread *cur = thread_current();
+  
   if (file == NULL) {
     return -1;
   }
 
   // using locks to prevent race conditions
-  lock_acquire(&file_lock);
+  // debug_printf("create(): attempting to acquire file lock!\n");
+  // lock_acquire(&file_lock);
+  char * saveptr;
+  printf("(%s) create %s\n",strtok_r(cur->name, " ", saveptr),file);
   int result = filesys_create(file, initial_size);
-  lock_release(&file_lock);
+  
+  // lock_release(&file_lock);
+  // debug_printf("create(): released file lock!\n");
+  
   return result;
 }
 
