@@ -18,13 +18,18 @@
 #include "threads/thread.h"
 #include "threads/vaddr.h"
 
+// Higher level debugger
+//#define debug_printf(fmt, ...) printf(fmt, ##__VA_ARGS__)
+#define debug_printf(fmt, ...) // Uncomment to turn debugger off and comment above
+//debug_printf("()\n");
+// Deeper level debugger
+//#define debug_extra_printf(fmt, ...) printf(fmt, ##__VA_ARGS__)
+#define debug_extra_printf(fmt, ...) // Uncomment to turn debugger off and comment above
+
 // NEW: for synchronizations
 #include "threads/synch.h"
 
 #define MAX_ARGS_LEN 4096 // NEW: max size for user program arguments
-
-// NEW: synch primitives
-struct semaphore sem_load;
 
 
 thread_func start_process;
@@ -40,6 +45,7 @@ process_execute (const char *file_name)
   char *fn_copy;
   tid_t tid;
 
+  debug_printf("(process_execute) starting..\n");
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
   fn_copy = palloc_get_page (0);
@@ -48,24 +54,18 @@ process_execute (const char *file_name)
   strlcpy (fn_copy, file_name, PGSIZE);
 
 
-  // dev-print NEW: print statement for seeing what file_name is
-  //printf("process_execute: %s\n", fn_copy);
-
-  // NEW : initalize sem_load helping a thread load its executable
-  sema_init(&sem_load,0);
-
   /* Create a new thread to execute FILE_NAME. */
   // NEW: dev-print
-  //printf("creating thread process...\n");
+  debug_printf("(process_execute) creating thread process...\n");
   tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
   if (tid == TID_ERROR){
+    // Failed to create a thread, free and return the failed thread
     palloc_free_page (fn_copy); 
     return tid;
    }
-
   // Wait on the new user_prog thread load
-  sema_down(&sem_load);
-
+  sema_down(&thread_current()->sem_child_load);
+  debug_printf("(process_execute) child load finished\n");
   // Return tid when done 
   return tid;
 }
@@ -79,8 +79,6 @@ start_process (void *file_name_)
   struct intr_frame if_;
   bool success;
 
-  // NEW: dev-print 
-  // printf("(args) begin\n");
   // NEW: parse the command line string
   char *save_ptr; 
   char *user_prog;
@@ -93,8 +91,6 @@ start_process (void *file_name_)
 	return;
 
   } 
-  // Dev-print
-  //printf("(args) [%s]\n", user_prog);
   // Added begin print that checks if args operation
   if (strstr(user_prog, "args") != NULL) {
     printf("(args) begin\n");
@@ -110,6 +106,7 @@ start_process (void *file_name_)
 	// Failed to allocate enough space for user args
 	// return -1, this print might need to change later
   	printf("%s: exit(%d)\n", user_prog, -1); 
+    // TO-DO: add thread exit here I think
   }else{
   	// Add user_prog as the first element
 	// if memory allocated correctly 
@@ -135,15 +132,14 @@ start_process (void *file_name_)
 	user_args[arg_count] = token;
 	// Add 1 to total number of arguments
 	++arg_count;
-	// dev-print
-	//printf("	arg_count: %d | token: [%s]\n", arg_count, token);
+	debug_extra_printf("	arg_count: %d | token: [%s]\n", arg_count, token);
 	// Check for the next token
 	token = strtok_r(NULL, " ", &save_ptr);
   }
   // Null terminate user_args
   user_args[arg_count] = NULL;
   // dev-print
-  //printf("	total arg_count: %d | total_size %lu \n", arg_count, arg_size);
+  debug_extra_printf("	total arg_count: %d | total_size %lu \n", arg_count, arg_size);
  
 
   // For loop to print out the user prog paraemters
@@ -181,13 +177,14 @@ start_process (void *file_name_)
   palloc_free_page (file_name);
   if (!success){
     thread_current()->exit_status = -1;
-    sema_up(&sem_load); 
+    debug_printf("(process_start) error loading source file\n");
+    sema_up(&thread_current()->parent->sem_child_load); 
     thread_exit ();
   }
 
-
-  // unblock kernel thread
-  sema_up(&sem_load); 
+  // unblock parent thread
+  debug_printf("(process_start) load successful\n");
+  sema_up(&thread_current()->parent->sem_child_load); 
 
 
   /* Start the user process by simulating a return from an
@@ -219,6 +216,7 @@ process_wait (tid_t child_tid UNUSED)
 void
 process_exit (void)
 {
+  debug_printf("(process_exit) Starting\n");
   struct thread *cur = thread_current ();
   uint32_t *pd;
 
@@ -226,6 +224,17 @@ process_exit (void)
   char * saveptr;
   printf("%s: exit(%d)\n",strtok_r(cur->name, " ", saveptr),cur->exit_status);
   
+  debug_printf("(process_exit) destroying child threads\n");
+  // NEW: destroy the children threads
+  while(!list_empty(&cur->child_list)){
+    // Collect the child thread element by popping it from the list
+    struct list_elem *elem_c = list_pop_front(&cur->child_list); 
+    struct child *c_t = list_entry(elem_c, struct child, child_elem); 
+    // Delete the list element and the child
+    list_remove(elem_c); 
+    free(c_t);
+  }
+  debug_printf("(process_exit) Child threads destroyed\n");  
   
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
@@ -243,6 +252,7 @@ process_exit (void)
       pagedir_activate (NULL);
       pagedir_destroy (pd);
     }
+  debug_printf("(process_exit) finished\n");
 }
 
 /** Sets up the CPU for running user code in the current

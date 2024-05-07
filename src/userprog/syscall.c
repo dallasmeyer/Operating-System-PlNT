@@ -8,7 +8,7 @@
 #include <syscall-nr.h>
 
 // used to toggle print statements
-// #define debug_printf(fmt, ...) printf(fmt, ##__VA_ARGS__)
+//#define debug_printf(fmt, ...) printf(fmt, ##__VA_ARGS__)
 #define debug_printf(fmt, ...) // Define as empty if debugging is disabled
 
 
@@ -84,6 +84,7 @@ static void syscall_handler(struct intr_frame *f UNUSED) {
 	  case SYS_EXIT: 
       debug_printf("(syscall) syscall_funct is [SYS_EXIT]\n");
       exit(*(stack_p+1));
+      debug_printf("(syscall) syscall_funct is [SYS_EXIT] complete\n");
       break; 
 	  
 	  // Case 3: Start another process

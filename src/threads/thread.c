@@ -15,6 +15,10 @@
 #include "userprog/process.h"
 #endif
 
+// Toggleable debugger
+//#define debug_printf(fmt, ...) printf(fmt, ##__VA_ARGS__)
+#define debug_printf(fmt, ...) // Define as empty if debugging is disabled
+
 /** Random value for struct thread's `magic' member.
    Used to detect stack overflow.  See the big comment at the top
    of thread.h for details. */
@@ -197,6 +201,13 @@ thread_create (const char *name, int priority,
   sf = alloc_frame (t, sizeof *sf);
   sf->eip = switch_entry;
   sf->ebp = 0;
+
+  // NEW: Used for communicating between the parent and children threads
+  t->parent = thread_current();                     // Newly created threads pointer to parent 
+  struct child *c_t = malloc(sizeof(struct child)); // Creating new child for parent thread to use
+  c_t->tid = tid; 
+  list_push_back(&thread_current()->child_list, &c_t->child_elem);
+
 
   /* Add to run queue. */
   thread_unblock (t);
@@ -463,6 +474,10 @@ init_thread (struct thread *t, const char *name, int priority)
   t->stack = (uint8_t *) t + PGSIZE;
   t->priority = priority;
   t->magic = THREAD_MAGIC;
+  // NEW: Used for communicating between parent and children threads 
+  sema_init(&t->sem_child_load, 0);
+  sema_init(&t->sem_child_wait,0);
+  list_init(&t->child_list);
 
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);
