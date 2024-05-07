@@ -11,27 +11,14 @@
 static void syscall_handler(struct intr_frame *);
 bool valid_addr(void * vaddr);
 
-// declaring the system calls
-// void halt(void);
-// void exit(int status);
-// pid_t exec(const char *cmd_line);
-// int wait(pid_t pid);
-// bool create(const char *file, unsigned initial_size);
-// bool remove(const char *file);
-// int open(const char *file);
-// int filesize(int fd);
-// int read(int fd, void *buffer, unsigned size);
-// int write(int fd, const void *buffer, unsigned size);
-// void seek(int fd, unsigned position);
-// unsigned tell(int fd);
-// void close(int fd);
-
 // structs
 struct lock file_lock;
+struct lock process_lock;
 
 void syscall_init(void) {
   intr_register_int(0x30, 3, INTR_ON, syscall_handler, "syscall");
   lock_init(&file_lock);
+  lock_init(&process_lock);
 }
 
 bool valid_addr(void * vaddr){
@@ -72,7 +59,6 @@ static void syscall_handler(struct intr_frame *f UNUSED) {
   int *stack_p = f->esp;
   printf("Stack pointer in syscall_handler: 0x%x\n", (uintptr_t)f->esp);
 
-
   // check if virtual address
   if (!valid_addr(stack_p)) {
     printf("syscall_handler(): Not a virtual address\n");
@@ -81,16 +67,22 @@ static void syscall_handler(struct intr_frame *f UNUSED) {
   }
 
   // Dereference the stack pointer into the system call function number
-  int syscall_funct = *stack_p; 
+  int syscall_funct = *stack_p;
+  // Dev print statement:
 
-  switch(syscall_funct){
-  
-	  //~~~~~ Project 2 system calls ~~~~~
-	  // Case 1: halt the operating system 
-	  case SYS_HALT:
-	  printf("(syscall) syscall_funct is [SYS_HALT]\n"); 
-	  halt(); 
-	  break; 
+  switch (syscall_funct) {
+
+  //~~~~~ Project 2 system calls ~~~~~
+  // Case 1: halt the operating system
+  case SYS_HALT:
+    printf("(syscall) syscall_funct is [SYS_HALT]\n");
+    halt();
+    break;
+
+  // Case 2: terminate this process
+  case SYS_EXIT:
+    exit(0);
+    break;
 
 	  // Case 2: terminate this process
 	  case SYS_EXIT: 
@@ -177,8 +169,13 @@ void exit(int status) {
 
 pid_t exec(const char *cmd_line) {
   // Runs executable
-  // TODO:
-  return 0;
+  printf("exec(): executing!");
+
+  lock_acquire(&process_lock);
+  pid_t result = process_execute(cmd_line);
+  lock_release(&process_lock);
+
+  return result;
 }
 
 int wait(pid_t pid) {
@@ -204,7 +201,15 @@ bool create(const char *file, unsigned initial_size) {
 
 bool remove(const char *file) {
   // Deletes the file
-  // TODO:
+  printf("remove(): removing!");
+  if (file == NULL) {
+    return -1;
+  }
+
+  lock_acquire(&file_lock);
+  bool result = filesys_remove(file);
+  lock_release(&file_lock);
+  return result;
 }
 
 int open(const char *file) {
@@ -224,7 +229,27 @@ int read(int fd, void *buffer, unsigned size) {
   return 0;
 }
 
-// int write (int fd, const void *buffer, unsigned size)
+int write(int fd, const void *buffer, unsigned size) {
+  // Writes size bytes from buffer to file descriptor, fd.
+  // Idea: try and write all of the all of buffer to console in a single call.
+
+  // Check if console out, as fd = 1 for console writes.
+  if (fd == 1) {
+    // don't need to lock, since putbuf has locks
+    putbuf(buffer, size);
+    return size;
+  }
+
+  // FIXME: implement getting file struct
+  // struct file f_inst =
+
+  lock_acquire(&file_lock);
+  // off_t result = file_write(file_inst, buffer, size);
+  lock_release(&file_lock);
+
+  return 0;
+}
+
 // void seek (int fd, unsigned position);
 // unsigned tell (int fd);
 // void close (int fd);
