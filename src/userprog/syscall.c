@@ -97,51 +97,64 @@ static void syscall_handler(struct intr_frame *f UNUSED) {
 	  
 	  // Case 3: Start another process
 	  case SYS_EXEC: 
+    printf("(syscall) syscall_funct is [SYS_EXEC]\n");
 	  break; 
 
 	  // Case 4: Wait for a child process to die
 	  case SYS_WAIT: 
+    printf("(syscall) syscall_funct is [SYS_WAIT]\n");
 	  break; 
 
 	  // Case 5: Create a file
 	  case SYS_CREATE: 
+    printf("(syscall) syscall_funct is [SYS_CREATE]\n");
 	  break; 
 
 	  // Case 6: Delete a file
 	  case SYS_REMOVE: 
+    printf("(syscall) syscall_funct is [SYS_REMOVE]\n");
 	  break; 
 
 	  // Case 7: Open a file 
 	  case SYS_OPEN: 
+    printf("(syscall) syscall_funct is [SYS_OPEN]\n");
 	  break; 
 
 	  // Case 8: Obtain a files size
 	  case SYS_FILESIZE:
+    printf("(syscall) syscall_funct is [SYS_FILESIZE]\n");
 	  break; 
 
 	  // Case 9: Read from a file 
 	  case SYS_READ:
+    printf("(syscall) syscall_funct is [SYS_READ]\n");
 	  break; 
 
 	  // Case 10: Write to a file 
 	  case SYS_WRITE: 
+    printf("(syscall) syscall_funct is [SYS_WRITE]\n");
 	  break; 
 
 	  // Case 11: Change a position in a file
 	  case SYS_SEEK: 
+    printf("(syscall) syscall_funct is [SYS_SEEK]\n");
 	  break; 
 
 	  // Case 12: Report a current position in a file
-	  case SYS_TELL: 
+	  case SYS_TELL:
+    printf("(syscall) syscall_funct is [SYS_TELL]\n"); 
 	  break; 
 
 	  // Case 13: Close a file
 	  case SYS_CLOSE: 
+    printf("(syscall) syscall_funct is [SYS_CLOSE]\n");
 	  break; 
 
 	  //~~~~~ Project 2 System Calls ~~~~~
   	  // Default to exiting the process 
 	  default: 
+    printf("(syscall) syscall_funct is DEFAULT [SYS_EXT]\n");
+    exit(-1);
 	  break; 
   
   }
