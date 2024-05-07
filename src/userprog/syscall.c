@@ -92,6 +92,7 @@ static void syscall_handler(struct intr_frame *f UNUSED) {
 
 	  // Case 2: terminate this process
 	  case SYS_EXIT: 
+    printf("(syscall) syscall_funct is [SYS_EXIT]\n");
 	  break; 
 	  
 	  // Case 3: Start another process
@@ -157,6 +158,9 @@ void halt(void) {
 void exit(int status) {
   // Terminates current user program
   // TODO:
+
+  thread_current()->exit_status = status;
+  thread_exit();
 }
 
 pid_t exec(const char *cmd_line) {
