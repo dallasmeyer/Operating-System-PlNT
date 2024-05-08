@@ -8,8 +8,8 @@
 #include <syscall-nr.h>
 
 // used to toggle print statements
-// #define debug_printf(fmt, ...) printf(fmt, ##__VA_ARGS__)
-#define debug_printf(fmt, ...) // Define as empty if debugging is disabled
+#define debug_printf(fmt, ...) printf(fmt, ##__VA_ARGS__)
+//#define debug_printf(fmt, ...) // Define as empty if debugging is disabled
 
 
 static void syscall_handler(struct intr_frame *);
@@ -119,7 +119,7 @@ static void syscall_handler(struct intr_frame *f UNUSED) {
 	  case SYS_CREATE: 
       debug_printf("(syscall) syscall_funct is [SYS_CREATE]\n");
       debug_printf("s1:%s,s2:%u,s3:%u,s4:%u\n", *(stack_p+1), *(stack_p+2), *(stack_p+3), *(stack_p+4));
-      // if (!valid_addr(stack_p+1) || !valid_addr(stack_p+2) || !valid_addr(*(stack_p+2))) {exit(-1);}
+      if (!valid_addr(stack_p+1) || !valid_addr(stack_p+2)) {exit(-1);}
 
       file = *(stack_p+1);
       unsigned size = *(stack_p+2);
@@ -163,8 +163,9 @@ static void syscall_handler(struct intr_frame *f UNUSED) {
 	  // Case 10: Write to a file 
 	  case SYS_WRITE: 
       debug_printf("(syscall) syscall_funct is [SYS_WRITE]\n");
-      if (!valid_addr((stack_p+2))  || !valid_addr((stack_p+3))) {exit(-1);}
       
+      if (!valid_addr((stack_p+1)) || !valid_addr((stack_p+2))  || !valid_addr((stack_p+3))) {exit(-1);}
+      debug_printf("s1:%u,s2:%u,s3:%u\n", *(stack_p+1), *(stack_p+2), *(stack_p+3));
       fd = *(stack_p+1);
       buf = *(stack_p+2);
       sz = *(stack_p+3);
@@ -242,7 +243,7 @@ bool create(const char *file, unsigned initial_size) {
   lock_acquire(&file_lock);
   debug_printf("create(): attempting to create!\n");
   int result = filesys_create(file, initial_size);
-  debug_printf("create(): result = %d!\n", result);
+  debug_printf("create(): result = %d!\n", result); 
   lock_release(&file_lock);
   debug_printf("create(): released file lock!\n");
   
@@ -337,12 +338,12 @@ int read(int fd, void *buffer, unsigned size) {
 }
 
 int write(int fd, const void *buffer, unsigned size) {
-  // Writes size bytes from buffer to file descriptor, fd.
+ // Writes size bytes from buffer to file descriptor, fd.
   // Idea: try and write all of the all of buffer to console in a single call.
 
   // Check if console out, as fd = 1 for console writes.
   
-  // debug_printf("fd:%d\n", fd);
+  debug_printf("(write) fd:%d\n", fd);
   if (fd == 1) {
     putbuf(buffer, size);
     return size;
@@ -363,6 +364,7 @@ int write(int fd, const void *buffer, unsigned size) {
   debug_printf("result:%d\n", result);
 
   return result;
+
 }
 
 void seek (int fd, unsigned position) {

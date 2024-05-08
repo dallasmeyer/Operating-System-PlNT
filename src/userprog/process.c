@@ -92,11 +92,12 @@ start_process (void *file_name_)
 
   } 
   // Added begin print that checks if args operation
-  // if (strstr(user_prog, "args") != NULL) {
-  //   printf("(args) begin\n");
-  // } else {
-  //   printf("(%s) begin\n", user_prog);
-  // }
+   // TO-DO maybe remove this, there is a begin print somewhere else
+   if (strstr(user_prog, "args") != NULL) {
+     //printf("(args) begin\n");
+   } else {
+     //printf("(%s) begin\n", user_prog);
+   }
 
 
   // NEW: parse and save the user arguments
@@ -105,7 +106,6 @@ start_process (void *file_name_)
   if(user_args == NULL){
 	// Failed to allocate enough space for user args
 	// return -1, this print might need to change later
-  	// printf("%s: exit(%d)\n", user_prog, -1); 
     // TO-DO: add thread exit here I think
   }else{
   	// Add user_prog as the first element
@@ -450,8 +450,6 @@ load (const char *file_name, void (**eip) (void), void **esp, char **user_args, 
         }
     }
 
-  // dev-print 
-  //printf("	Calling to setup the stack\n");
   /* Set up stack. */
   if (!setup_stack (esp, user_args, arg_count))
     goto done;
