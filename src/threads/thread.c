@@ -481,6 +481,7 @@ init_thread (struct thread *t, const char *name, int priority)
   sema_init(&t->sem_child_load, 0);
   sema_init(&t->sem_child_wait,0);
   list_init(&t->child_list);
+  list_init(&t->list_files);
 
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);

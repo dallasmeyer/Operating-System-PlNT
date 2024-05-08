@@ -8,8 +8,8 @@
 #include <syscall-nr.h>
 
 // used to toggle print statements
-//#define debug_printf(fmt, ...) printf(fmt, ##__VA_ARGS__)
-#define debug_printf(fmt, ...) // Define as empty if debugging is disabled
+#define debug_printf(fmt, ...) printf(fmt, ##__VA_ARGS__)
+//#define debug_printf(fmt, ...) // Define as empty if debugging is disabled
 
 
 static void syscall_handler(struct intr_frame *);
@@ -145,8 +145,8 @@ static void syscall_handler(struct intr_frame *f UNUSED) {
 
 	  // Case 7: Open a file 
 	  case SYS_OPEN: 
-       //if(!valid_add()) {exit(-1);}
       debug_printf("(syscall) syscall_funct is [SYS_OPEN]\n");
+      if(!valid_addr(stack_p+1)){exit(-1);}
       file = *(stack_p+1);
       f->eax = open(file);
       break; 
@@ -162,7 +162,8 @@ static void syscall_handler(struct intr_frame *f UNUSED) {
        //if(!valid_add()) {exit(-1);}
       debug_printf("(syscall) syscall_funct is [SYS_READ]\n");
       if (!valid_addr((stack_p+1))  || !valid_addr((stack_p+2))  
-          || !valid_addr((stack_p+3))) {exit(-1);}
+          || !valid_addr((stack_p+3)) || !valid_addr(*(stack_p+3))) 
+          {exit(-1);}
       
       int fd = *(stack_p+1);
       void * buf = *(stack_p+2);
@@ -223,12 +224,13 @@ void exit(int status) {
   // Terminates current user program
   debug_printf("(exit) Exiting program\n");
   thread_current()->exit_status = status;
+  thread_current()->parent->child_done = 1; 
   if(thread_current()->parent->child_waiting == thread_current()->tid){
     // If the parent thread is waiting on us, release them
     debug_printf("(exit) Releasing parent\n");
     sema_up(&thread_current()->parent->sem_child_wait); 
   }
-  thread_current()->parent->child_done = 1; 
+  
   thread_exit();
 }
 
@@ -305,24 +307,32 @@ struct file_inst *locate_file (int fd) {
 
 int open(const char *file) {
   // Opens the file, returning non-negative integer, -1, or the fd
-  
+  debug_printf("(open) Opening file\n");
   lock_acquire(&file_lock);
   struct file *file_p = filesys_open(file);
   lock_release(&file_lock);
-
+  // Return if we failed to open the file
   if (file_p == NULL) {
+    debug_printf("(open) failed to open file\n");
     return -1;
   }
 
-  struct inode *i;
-  char * f_name;
-
-  // allocate memory for new file element, and instantiate struct
-  struct file_inst * file_elem = malloc(sizeof(struct file_inst));
+   // Allocate memory for new file element and instantiate the struct
+    debug_printf("(open) allocating memory\n");
+    struct file_inst *file_elem = malloc(sizeof(struct file_inst));
+    if (file_elem == NULL) {
+        // Close and return if we failed to allocate
+        file_close(file_p); 
+        return -1;
+    }
+  debug_printf("(open) initializing element\n");
+  // Initialize file element
   file_elem->fd = ++thread_current()->fd_ct;
   file_elem->file_p = file_p;
+  // Insert the file elements
+  debug_printf("(open) inserting item\n");
   list_push_front(&thread_current()->list_files,&file_elem->file_list_e);
-
+  debug_printf("(open) Finished\n");
   return file_elem->fd;
 }
 
@@ -333,12 +343,11 @@ int filesize(int fd) {
 
 int read(int fd, void *buffer, unsigned size) {
   // Read size bytes from fd into buffer,
-  
   // check if keyboard input, as fd = 0 for user writes.
   int cur_len = 0;
   if (fd == 0) {
     // continue taking keyboard input
-    while (cur_len < size) {
+    while (cur_len < STDIN_FILENO) {
       *((char *) buffer + cur_len) = input_getc();
       cur_len++;
     }
@@ -365,16 +374,17 @@ int write(int fd, const void *buffer, unsigned size) {
   // Check if console out, as fd = 1 for console writes.
   
   debug_printf("(write) fd:%d\n", fd);
-  if (fd == 1) {
+  if (fd == STDOUT_FILENO) {
     putbuf(buffer, size);
     return size;
   }
+  debug_printf("(write) fd:%d Done\n", fd);
 
   struct file_inst * fd_e = locate_file(fd);
 
   if (fd_e == NULL) {
     return -1;
-    debug_printf("write(): fd_e NULL!\n");
+    debug_printf("(write) fd_e NULL!\n");
   }
   
   lock_acquire(&file_lock);
@@ -382,7 +392,7 @@ int write(int fd, const void *buffer, unsigned size) {
   int result = file_write(fd_e->file_p, buffer, size);
   lock_release(&file_lock);
 
-  debug_printf("result:%d\n", result);
+  debug_printf("(write) result:%d\n", result);
 
   return result;
 
