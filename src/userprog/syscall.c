@@ -39,7 +39,7 @@ bool valid_addr(void * vaddr){
       debug_printf("invalid page\n");
       return false;
   }
-
+  // Check if the virtual address is above PHYS_BASE
   if (vaddr >= PHYS_BASE) {
       debug_printf("Invalid vaddr: above user address space\n");
       // Terminate the process with exit code -1
@@ -67,7 +67,7 @@ static void syscall_handler(struct intr_frame *f UNUSED) {
 
   // Get stack pointer via "esp" of intr_frame
   int *stack_p = f->esp;
-  debug_printf("Stack pointer in syscall_handler: 0x%x\n", (uintptr_t)f->esp);
+  debug_printf("(syscall_handler) Stack pointer in syscall_handler: 0x%x\n", (uintptr_t)f->esp);
 
   // check if virtual address
   if (!valid_addr(stack_p)) {
@@ -88,6 +88,12 @@ static void syscall_handler(struct intr_frame *f UNUSED) {
 
   const char *file;
 
+  if ((syscall_funct != SYS_EXIT) && (syscall_funct != SYS_WRITE)) {
+    if (!valid_addr(*(stack_p+1))) {
+      exit(-1);
+    }
+  }
+
   switch (syscall_funct) {
 
   //~~~~~ Project 2 system calls ~~~~~
@@ -100,23 +106,28 @@ static void syscall_handler(struct intr_frame *f UNUSED) {
 	  // Case 2: terminate this process
 	  case SYS_EXIT: 
       debug_printf("(syscall) syscall_funct is [SYS_EXIT]\n");
+      if(!valid_addr(stack_p+1)) {exit(-1);}
       exit(*(stack_p+1));
       debug_printf("(syscall) syscall_funct is [SYS_EXIT] complete\n");
       break; 
 	  
 	  // Case 3: Start another process
 	  case SYS_EXEC: 
+      //if(!valid_add()) {exit(-1);}
       debug_printf("(syscall) syscall_funct is [SYS_EXEC]\n");
       f->eax = exec(*(stack_p + 1));
       break; 
 
 	  // Case 4: Wait for a child process to die
 	  case SYS_WAIT: 
+      //if(!valid_add()) {exit(-1);}
       debug_printf("(syscall) syscall_funct is [SYS_WAIT]\n");
       break; 
 
 	  // Case 5: Create a file
 	  case SYS_CREATE: 
+      if(!valid_addr(stack_p+1) || !valid_addr(stack_p+2)) 
+      {exit(-1);}
       debug_printf("(syscall) syscall_funct is [SYS_CREATE]\n");
       debug_printf("s1:%s,s2:%u,s3:%u,s4:%u\n", *(stack_p+1), *(stack_p+2), *(stack_p+3), *(stack_p+4));
       if (!valid_addr(stack_p+1) || !valid_addr(stack_p+2)) {exit(-1);}
@@ -133,12 +144,14 @@ static void syscall_handler(struct intr_frame *f UNUSED) {
 
 	  // Case 6: Delete a file
 	  case SYS_REMOVE: 
+       //if(!valid_add()) {exit(-1);}
       debug_printf("(syscall) syscall_funct is [SYS_REMOVE]\n");
       remove(*(stack_p+1));
       break; 
 
 	  // Case 7: Open a file 
 	  case SYS_OPEN: 
+       //if(!valid_add()) {exit(-1);}
       debug_printf("(syscall) syscall_funct is [SYS_OPEN]\n");
       file = *(stack_p+1);
       f->eax = open(file);
@@ -146,11 +159,13 @@ static void syscall_handler(struct intr_frame *f UNUSED) {
 
 	  // Case 8: Obtain a files size
 	  case SYS_FILESIZE:
+       //if(!valid_add()) {exit(-1);}
       debug_printf("(syscall) syscall_funct is [SYS_FILESIZE]\n");
       break; 
 
 	  // Case 9: Read from a file 
 	  case SYS_READ:
+       //if(!valid_add()) {exit(-1);}
       debug_printf("(syscall) syscall_funct is [SYS_READ]\n");
       if (!valid_addr((stack_p+2))  || !valid_addr((stack_p+3))) {exit(-1);}
       
@@ -162,6 +177,7 @@ static void syscall_handler(struct intr_frame *f UNUSED) {
 
 	  // Case 10: Write to a file 
 	  case SYS_WRITE: 
+       //if(!valid_add()) {exit(-1);}
       debug_printf("(syscall) syscall_funct is [SYS_WRITE]\n");
       
       if (!valid_addr((stack_p+1)) || !valid_addr((stack_p+2))  || !valid_addr((stack_p+3))) {exit(-1);}
@@ -174,6 +190,7 @@ static void syscall_handler(struct intr_frame *f UNUSED) {
 
 	  // Case 11: Change a position in a file
 	  case SYS_SEEK: 
+       //if(!valid_add()) {exit(-1);}
       debug_printf("(syscall) syscall_funct is [SYS_SEEK]\n");
       if (!valid_addr((stack_p+2))) exit (-1);
       
@@ -182,18 +199,20 @@ static void syscall_handler(struct intr_frame *f UNUSED) {
 
 	  // Case 12: Report a current position in a file
 	  case SYS_TELL:
+       //if(!valid_add()) {exit(-1);}
       debug_printf("(syscall) syscall_funct is [SYS_TELL]\n"); 
       break; 
 
 	  // Case 13: Close a file
 	  case SYS_CLOSE: 
+       //if(!valid_add()) {exit(-1);}
       debug_printf("(syscall) syscall_funct is [SYS_CLOSE]\n");
       break; 
 
 	  //~~~~~ Project 2 System Calls ~~~~~
   	  // Default to exiting the process 
 	  default: 
-    debug_printf("(syscall) syscall_funct is DEFAULT [SYS_EXT]\n");
+    debug_printf("(syscall) syscall_funct is DEFAULT [SYS_EXIT]\n");
     exit(-1);
 	  break; 
   

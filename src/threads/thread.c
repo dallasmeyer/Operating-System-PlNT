@@ -202,6 +202,8 @@ thread_create (const char *name, int priority,
   sf->eip = switch_entry;
   sf->ebp = 0;
 
+  // New: set our current threads exit status to -1 by default 
+  t->exit_status = -1;
   // NEW: Used for communicating between the parent and children threads
   t->parent = thread_current();                     // Newly created threads pointer to parent 
   struct child *c_t = malloc(sizeof(struct child)); // Creating new child for parent thread to use
