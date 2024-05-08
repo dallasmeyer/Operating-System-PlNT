@@ -9,6 +9,16 @@ void syscall_init(void);
 
 typedef int pid_t;
 
+struct file_inst
+{
+  // set file pointer
+  struct file * file_p;
+  // file descriptor
+  int fd;
+  // list element
+  struct list_elem file_list_e;
+};
+
 /** Projects 2 and later. */
 struct lock file_lock;
 struct lock process_lock;

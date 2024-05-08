@@ -8,14 +8,12 @@
 #include <syscall-nr.h>
 
 // used to toggle print statements
-#define debug_printf(fmt, ...) printf(fmt, ##__VA_ARGS__)
-// #define debug_printf(fmt, ...) // Define as empty if debugging is disabled
+// #define debug_printf(fmt, ...) printf(fmt, ##__VA_ARGS__)
+#define debug_printf(fmt, ...) // Define as empty if debugging is disabled
 
 
 static void syscall_handler(struct intr_frame *);
 bool valid_addr(void * vaddr);
-
-struct file_inst *locate_file (int);
 
 void syscall_init(void) {
   intr_register_int(0x30, 3, INTR_ON, syscall_handler, "syscall");
@@ -41,11 +39,21 @@ bool valid_addr(void * vaddr){
       debug_printf("invalid page\n");
       return false;
   }
+
+  if (vaddr >= PHYS_BASE) {
+      debug_printf("Invalid vaddr: above user address space\n");
+      // Terminate the process with exit code -1
+      thread_current()->exit_status = -1;
+      thread_exit();
+  }
+  
   // Check if the virtual address is not a null pointer
   if (vaddr == NULL) {
       debug_printf("Nonetype vaddr\n");
       return false;
   }
+
+  
   // Return true otherwise
   debug_printf("No issue found in vaddr\n");
   return true;
@@ -73,7 +81,7 @@ static void syscall_handler(struct intr_frame *f UNUSED) {
   // Dev print statement:
   
   if ((syscall_funct != SYS_EXIT) && (syscall_funct != SYS_WRITE)) {
-    if (!valid_addr(*(stack_p+1))) {
+    if (!valid_addr(*(stack_p+1)) || !valid_addr(stack_p+1)) {
       exit(-1);
     }
   }
@@ -99,6 +107,7 @@ static void syscall_handler(struct intr_frame *f UNUSED) {
 	  // Case 3: Start another process
 	  case SYS_EXEC: 
       debug_printf("(syscall) syscall_funct is [SYS_EXEC]\n");
+      f->eax = exec(*(stack_p + 1));
       break; 
 
 	  // Case 4: Wait for a child process to die
@@ -109,20 +118,17 @@ static void syscall_handler(struct intr_frame *f UNUSED) {
 	  // Case 5: Create a file
 	  case SYS_CREATE: 
       debug_printf("(syscall) syscall_funct is [SYS_CREATE]\n");
-      // debug_printf("s1:%s,s2:%u,s3:%u,s4:%u\n", *(stack_p+1), *(stack_p+2), *(stack_p+3), *(stack_p+4));
-      // if (!valid_addr(*(stack_p+2))) {
-      //   debug_printf("create(): invalid pointers!\n");
-      //   exit(-1);
-      //   return;
-      // }
+      debug_printf("s1:%s,s2:%u,s3:%u,s4:%u\n", *(stack_p+1), *(stack_p+2), *(stack_p+3), *(stack_p+4));
+      // if (!valid_addr(stack_p+1) || !valid_addr(stack_p+2) || !valid_addr(*(stack_p+2))) {exit(-1);}
 
       file = *(stack_p+1);
-      unsigned size = *(stack_p+3);
+      unsigned size = *(stack_p+2);
       
-      bool result = create(file,size);
-      // if (result) { // FIXME: may need to verify
-      //   exit(-1);
-      // }
+      // FIXME: gets stuck at inode_create or dir_add in filesys_create
+      bool result = create((const char * ) file,size);
+      if (!result) { 
+        exit(-1);
+      }
       break; 
 
 	  // Case 6: Delete a file
@@ -146,23 +152,31 @@ static void syscall_handler(struct intr_frame *f UNUSED) {
 	  // Case 9: Read from a file 
 	  case SYS_READ:
       debug_printf("(syscall) syscall_funct is [SYS_READ]\n");
+      if (!valid_addr((stack_p+2))  || !valid_addr((stack_p+3))) {exit(-1);}
+      
+      int fd = *(stack_p+1);
+      void * buf = *(stack_p+2);
+      unsigned sz = *(stack_p+3);
+      f->eax = read(fd, buf, sz);
       break; 
 
 	  // Case 10: Write to a file 
 	  case SYS_WRITE: 
       debug_printf("(syscall) syscall_funct is [SYS_WRITE]\n");
+      if (!valid_addr((stack_p+2))  || !valid_addr((stack_p+3))) {exit(-1);}
       
-      if (!valid_addr((stack_p+1)) || !valid_addr((stack_p+2))  || !valid_addr((stack_p+3))) {exit(-1);}
-      
-      int fd = *(stack_p+1);
-      void * buf = *(stack_p+2);
-      unsigned sz = *(stack_p+3);
+      fd = *(stack_p+1);
+      buf = *(stack_p+2);
+      sz = *(stack_p+3);
       write(fd, buf, sz);
       break; 
 
 	  // Case 11: Change a position in a file
 	  case SYS_SEEK: 
       debug_printf("(syscall) syscall_funct is [SYS_SEEK]\n");
+      if (!valid_addr((stack_p+2))) exit (-1);
+      
+      seek(*(stack_p+1),*(stack_p+2));
       break; 
 
 	  // Case 12: Report a current position in a file
@@ -226,9 +240,9 @@ bool create(const char *file, unsigned initial_size) {
   // using locks to prevent race conditions
   debug_printf("create(): attempting to acquire file lock!\n");
   lock_acquire(&file_lock);
-  char * saveptr;
-  // printf("(%s) create %s\n",strtok_r(cur->name, " ", saveptr),file);
+  debug_printf("create(): attempting to create!\n");
   int result = filesys_create(file, initial_size);
+  debug_printf("create(): result = %d!\n", result);
   lock_release(&file_lock);
   debug_printf("create(): released file lock!\n");
   
@@ -247,16 +261,6 @@ bool remove(const char *file) {
   lock_release(&file_lock);
   return result;
 }
-
-struct file_inst
-{
-  // set file pointer
-  struct file * file_p;
-  // file descriptor
-  int fd;
-  // list element
-  struct list_elem file_list_e;
-};
 
 
 struct file_inst *locate_file (int fd) {
@@ -307,8 +311,29 @@ int filesize(int fd) {
 
 int read(int fd, void *buffer, unsigned size) {
   // Read size bytes from fd into buffer,
-  // TODO:
-  return 0;
+  
+  // check if keyboard input, as fd = 0 for user writes.
+  int cur_len = 0;
+  if (fd == 0) {
+    // continue taking keyboard input
+    while (cur_len < size) {
+      *((char *) buffer + cur_len) = input_getc();
+      cur_len++;
+    }
+
+    return cur_len;
+  }
+
+  // locate file
+  struct file_inst * fd_e = locate_file(fd);
+  if (fd_e == NULL) exit(-1);
+
+  // read file
+  lock_acquire(&file_lock);
+  int result = file_read(fd_e->file_p, buffer, size);
+  lock_release(&file_lock);
+
+  return result;
 }
 
 int write(int fd, const void *buffer, unsigned size) {
@@ -319,17 +344,11 @@ int write(int fd, const void *buffer, unsigned size) {
   
   // debug_printf("fd:%d\n", fd);
   if (fd == 1) {
-    // don't need to lock, since putbuf has locks
-    // debug_printf("putbuf--");
     putbuf(buffer, size);
-    // debug_printf("--putbuf\n");
     return size;
   }
 
-  debug_printf("YYY\n");
   struct file_inst * fd_e = locate_file(fd);
-  // printf("fd_e->fd:%d\n",fd_e->fd);
-  debug_printf("YYYYYYYYYYYYYYY\n");
 
   if (fd_e == NULL) {
     return -1;
@@ -338,7 +357,6 @@ int write(int fd, const void *buffer, unsigned size) {
   
   lock_acquire(&file_lock);
   // write to the file
-  debug_printf("AAAAAAAAAAAAAA\n");
   int result = file_write(fd_e->file_p, buffer, size);
   lock_release(&file_lock);
 
@@ -347,6 +365,14 @@ int write(int fd, const void *buffer, unsigned size) {
   return result;
 }
 
-// void seek (int fd, unsigned position);
+void seek (int fd, unsigned position) {
+  struct file_inst * file_elem = locate_file(fd);
+  if (file_elem == NULL) exit(-1);
+
+  // using seek function
+  lock_acquire(&file_lock);
+  file_seek(file_elem->file_p, position);
+  lock_release(&file_lock);
+}
 // unsigned tell (int fd);
 // void close (int fd);
