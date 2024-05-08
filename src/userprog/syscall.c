@@ -109,20 +109,20 @@ static void syscall_handler(struct intr_frame *f UNUSED) {
 	  // Case 5: Create a file
 	  case SYS_CREATE: 
       debug_printf("(syscall) syscall_funct is [SYS_CREATE]\n");
-      debug_printf("s1:%s,s2:%u,s3:%u,s4:%u\n", *(stack_p+1), *(stack_p+2), *(stack_p+3), *(stack_p+4));
-      if (!valid_addr(*(stack_p+2))) {
-        debug_printf("create(): invalid pointers!\n");
-        exit(-1);
-        return;
-      }
+      // debug_printf("s1:%s,s2:%u,s3:%u,s4:%u\n", *(stack_p+1), *(stack_p+2), *(stack_p+3), *(stack_p+4));
+      // if (!valid_addr(*(stack_p+2))) {
+      //   debug_printf("create(): invalid pointers!\n");
+      //   exit(-1);
+      //   return;
+      // }
 
       file = *(stack_p+1);
-      unsigned size = *(stack_p+2);
+      unsigned size = *(stack_p+3);
       
       bool result = create(file,size);
-      if (!result) { // FIXME: may need to verify
-        exit(-1);
-      }
+      // if (result) { // FIXME: may need to verify
+      //   exit(-1);
+      // }
       break; 
 
 	  // Case 6: Delete a file
@@ -152,7 +152,12 @@ static void syscall_handler(struct intr_frame *f UNUSED) {
 	  case SYS_WRITE: 
       debug_printf("(syscall) syscall_funct is [SYS_WRITE]\n");
       
-      write(*(stack_p+5), *(stack_p+6),*(stack_p+7));
+      if (!valid_addr((stack_p+1)) || !valid_addr((stack_p+2))  || !valid_addr((stack_p+3))) {exit(-1);}
+      
+      int fd = *(stack_p+1);
+      void * buf = *(stack_p+2);
+      unsigned sz = *(stack_p+3);
+      write(fd, buf, sz);
       break; 
 
 	  // Case 11: Change a position in a file
@@ -219,13 +224,13 @@ bool create(const char *file, unsigned initial_size) {
   }
 
   // using locks to prevent race conditions
-  // debug_printf("create(): attempting to acquire file lock!\n");
+  debug_printf("create(): attempting to acquire file lock!\n");
   lock_acquire(&file_lock);
   char * saveptr;
-  printf("(%s) create %s\n",strtok_r(cur->name, " ", saveptr),file);
+  // printf("(%s) create %s\n",strtok_r(cur->name, " ", saveptr),file);
   int result = filesys_create(file, initial_size);
   lock_release(&file_lock);
-  // debug_printf("create(): released file lock!\n");
+  debug_printf("create(): released file lock!\n");
   
   return result;
 }
@@ -275,11 +280,9 @@ struct file_inst *locate_file (int fd) {
 int open(const char *file) {
   // Opens the file, returning non-negative integer, -1, or the fd
   
-  // printf("filesys OPENING!\n");
   lock_acquire(&file_lock);
   struct file *file_p = filesys_open(file);
   lock_release(&file_lock);
-  // printf("filesys DONE!\n");
 
   if (file_p == NULL) {
     return -1;
@@ -313,28 +316,33 @@ int write(int fd, const void *buffer, unsigned size) {
   // Idea: try and write all of the all of buffer to console in a single call.
 
   // Check if console out, as fd = 1 for console writes.
+  
+  // debug_printf("fd:%d\n", fd);
   if (fd == 1) {
     // don't need to lock, since putbuf has locks
+    // debug_printf("putbuf--");
     putbuf(buffer, size);
+    // debug_printf("--putbuf\n");
     return size;
   }
 
+  debug_printf("YYY\n");
   struct file_inst * fd_e = locate_file(fd);
   // printf("fd_e->fd:%d\n",fd_e->fd);
+  debug_printf("YYYYYYYYYYYYYYY\n");
 
   if (fd_e == NULL) {
     return -1;
-    printf("write(): fd_e NULL!\n");
+    debug_printf("write(): fd_e NULL!\n");
   }
   
   lock_acquire(&file_lock);
   // write to the file
-  printf("AAAAAAAAAAAAAA\n");
+  debug_printf("AAAAAAAAAAAAAA\n");
   int result = file_write(fd_e->file_p, buffer, size);
   lock_release(&file_lock);
-  printf("ZZZZZZZZZZZZZZZ\n");
 
-  printf("result:%d\n", result);
+  debug_printf("result:%d\n", result);
 
   return result;
 }

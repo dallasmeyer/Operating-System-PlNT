@@ -92,11 +92,11 @@ start_process (void *file_name_)
 
   } 
   // Added begin print that checks if args operation
-  if (strstr(user_prog, "args") != NULL) {
-    printf("(args) begin\n");
-  } else {
-    printf("(%s) begin\n", user_prog);
-  }
+  // if (strstr(user_prog, "args") != NULL) {
+  //   printf("(args) begin\n");
+  // } else {
+  //   printf("(%s) begin\n", user_prog);
+  // }
 
 
   // NEW: parse and save the user arguments
@@ -105,7 +105,7 @@ start_process (void *file_name_)
   if(user_args == NULL){
 	// Failed to allocate enough space for user args
 	// return -1, this print might need to change later
-  	printf("%s: exit(%d)\n", user_prog, -1); 
+  	// printf("%s: exit(%d)\n", user_prog, -1); 
     // TO-DO: add thread exit here I think
   }else{
   	// Add user_prog as the first element
@@ -143,14 +143,14 @@ start_process (void *file_name_)
  
 
   // For loop to print out the user prog paraemters
-  if (strstr(user_prog, "args") != NULL) printf("(args) argc = %d\n", arg_count); 
+  // if (strstr(user_prog, "args") != NULL) printf("(args) argc = %d\n", arg_count); 
   
   for(int i = 0; i < arg_count+1; i++){
     if (strstr(user_prog, "args") != NULL) {
       if (user_args[i]) {
-        printf("(args) argv[%d] = '%s'\n", i, user_args[i]); 
+        // printf("(args) argv[%d] = '%s'\n", i, user_args[i]); 
       } else {
-        printf("(args) argv[%d] = null\n", i); 
+        // printf("(args) argv[%d] = null\n", i); 
       }
     }
   }; 
@@ -166,7 +166,7 @@ start_process (void *file_name_)
 
   // Added begin print that checks if args operation
   if (strstr(user_prog, "args") != NULL) {
-    printf("(args) end\n");
+    // printf("(args) end\n");
   }
   
   // NEW: Free allocated memory from up above
