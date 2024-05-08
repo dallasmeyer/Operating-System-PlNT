@@ -19,8 +19,8 @@
 #include "threads/vaddr.h"
 
 // Higher level debugger
-#define debug_printf(fmt, ...) printf(fmt, ##__VA_ARGS__)
-//#define debug_printf(fmt, ...) // Uncomment to turn debugger off and comment above
+//#define debug_printf(fmt, ...) printf(fmt, ##__VA_ARGS__)
+#define debug_printf(fmt, ...) // Uncomment to turn debugger off and comment above
 //debug_printf("()\n");
 // Deeper level debugger
 //#define debug_extra_printf(fmt, ...) printf(fmt, ##__VA_ARGS__)
@@ -56,13 +56,12 @@ process_execute (const char *file_name)
 
   /* Create a new thread to execute FILE_NAME. */
   debug_printf("(process_execute) creating thread process...\n");
-  thread_current()->child_loaded = 0;
   tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
   if (tid == TID_ERROR){
     // Failed to create a thread, free and return the failed thread
     palloc_free_page (fn_copy); 
     return tid;
-   }
+  }
   // Wait on the new user_prog thread load
   sema_down(&thread_current()->sem_child_load);
   debug_printf("(process_execute) child load finished\n");
@@ -101,18 +100,9 @@ start_process (void *file_name_)
   user_prog = strtok_r(file_name_, " ", &save_ptr);
   if(user_prog == NULL){
   	// If we failed to find the user prog 
-	// or any other issue, exit
-	return;
-
+	  // or any other issue, exit
+	  return;
   } 
-  // Added begin print that checks if args operation
-   // TO-DO maybe remove this, there is a begin print somewhere else
-   if (strstr(user_prog, "args") != NULL) {
-     //printf("(args) begin\n");
-   } else {
-     //printf("(%s) begin\n", user_prog);
-   }
-
 
   // NEW: parse and save the user arguments
   // allocate memory for the user arguments
@@ -238,10 +228,15 @@ process_wait (tid_t child_tid)
   if (c_t == NULL) {return -1;}
 
   // Set what child we are waiting on
-  debug_printf("(process_wait) Waiting on child [%d]\n", child_tid);
-  thread_current()->child_waiting = child_tid; 
-  // Wait on child to finish its program so we dont kill it too early 
+  thread_current()->child_waiting = child_tid;
+
+  // Wait on the child if they arent finished yet
+  if(!thread_current()->child_done){
+    debug_printf("(process_wait) Waiting on child [%d]\n", child_tid);
+    // Wait on child to finish its program so we dont kill it too early 
   sema_down(&thread_current()->sem_child_wait);
+  } 
+  
   // Kill the child once it is done
   debug_printf("(process_wait) killing child\n");
   list_remove(&c_t->child_elem); 

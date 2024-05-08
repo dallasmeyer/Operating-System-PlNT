@@ -16,8 +16,8 @@
 #endif
 
 // Toggleable debugger
-//#define debug_printf(fmt, ...) printf(fmt, ##__VA_ARGS__)
-#define debug_printf(fmt, ...) // Define as empty if debugging is disabled
+#define debug_printf(fmt, ...) printf(fmt, ##__VA_ARGS__)
+//define debug_printf(fmt, ...) // Define as empty if debugging is disabled
 
 /** Random value for struct thread's `magic' member.
    Used to detect stack overflow.  See the big comment at the top
@@ -206,6 +206,8 @@ thread_create (const char *name, int priority,
   t->exit_status = -1;
   // NEW: Used for communicating between the parent and children threads
   t->parent = thread_current();                     // Newly created threads pointer to parent 
+  t->parent->child_loaded = 0;
+  t->parent->child_done = 0;
   struct child *c_t = malloc(sizeof(struct child)); // Creating new child for parent thread to use
   c_t->tid = tid; 
   list_push_back(&thread_current()->child_list, &c_t->child_elem);

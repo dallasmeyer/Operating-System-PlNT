@@ -8,8 +8,8 @@
 #include <syscall-nr.h>
 
 // used to toggle print statements
-#define debug_printf(fmt, ...) printf(fmt, ##__VA_ARGS__)
-//#define debug_printf(fmt, ...) // Define as empty if debugging is disabled
+//#define debug_printf(fmt, ...) printf(fmt, ##__VA_ARGS__)
+#define debug_printf(fmt, ...) // Define as empty if debugging is disabled
 
 
 static void syscall_handler(struct intr_frame *);
@@ -228,6 +228,7 @@ void exit(int status) {
     debug_printf("(exit) Releasing parent\n");
     sema_up(&thread_current()->parent->sem_child_wait); 
   }
+  thread_current()->parent->child_done = 1; 
   thread_exit();
 }
 
