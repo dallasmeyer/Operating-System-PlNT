@@ -297,6 +297,7 @@ thread_exit (void)
 {
   ASSERT (!intr_context ());
 
+sema_up(&thread_current()->parent->sem_child_wait); 
 #ifdef USERPROG
   process_exit ();
 #endif

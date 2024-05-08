@@ -113,6 +113,7 @@ struct thread
     struct semaphore sem_child_load;
     struct semaphore sem_child_wait;
     struct list child_list; 
+    int child_loaded;
 
     /* Owned by thread.c. */
     unsigned magic;                     /**< Detects stack overflow. */

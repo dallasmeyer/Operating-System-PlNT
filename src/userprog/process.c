@@ -55,8 +55,8 @@ process_execute (const char *file_name)
 
 
   /* Create a new thread to execute FILE_NAME. */
-  // NEW: dev-print
   debug_printf("(process_execute) creating thread process...\n");
+  thread_current()->child_loaded = 0;
   tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
   if (tid == TID_ERROR){
     // Failed to create a thread, free and return the failed thread
@@ -66,6 +66,20 @@ process_execute (const char *file_name)
   // Wait on the new user_prog thread load
   sema_down(&thread_current()->sem_child_load);
   debug_printf("(process_execute) child load finished\n");
+  // Check if the child thread loaded 
+  if(!thread_current()->child_loaded){
+    debug_printf("(process_execute) child failed to load\n");
+    // Collect the child thread element by popping it from the list
+    struct list_elem *elem_c = list_pop_front(&thread_current()->child_list); 
+    struct child *c_t = list_entry(elem_c, struct child, child_elem); 
+    // Delete the list element and the child
+    list_remove(elem_c); 
+    free(c_t);
+  }
+
+  // Stops the main/parent thread from killing the child before it finishes its program 
+  sema_down(&thread_current()->sem_child_wait);
+  debug_printf("(process_execute) child load finished [%s]\n", thread_current()->name);
   // Return tid when done 
   return tid;
 }
@@ -162,6 +176,10 @@ start_process (void *file_name_)
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
   success = load (file_name, &if_.eip, &if_.esp, user_args, arg_count);
+  // NEW: set the child loaded flag for parent thread that started the user program
+  debug_printf("(process_start) load success is [%d]\n", success);
+  thread_current()->parent->child_loaded = success;
+
 
 
   // Added begin print that checks if args operation

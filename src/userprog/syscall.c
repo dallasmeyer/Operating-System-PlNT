@@ -8,8 +8,8 @@
 #include <syscall-nr.h>
 
 // used to toggle print statements
-#define debug_printf(fmt, ...) printf(fmt, ##__VA_ARGS__)
-//#define debug_printf(fmt, ...) // Define as empty if debugging is disabled
+//#define debug_printf(fmt, ...) printf(fmt, ##__VA_ARGS__)
+#define debug_printf(fmt, ...) // Define as empty if debugging is disabled
 
 
 static void syscall_handler(struct intr_frame *);
@@ -169,7 +169,7 @@ static void syscall_handler(struct intr_frame *f UNUSED) {
       fd = *(stack_p+1);
       buf = *(stack_p+2);
       sz = *(stack_p+3);
-      write(fd, buf, sz);
+      f->eax = write(fd, buf, sz);
       break; 
 
 	  // Case 11: Change a position in a file
@@ -207,6 +207,7 @@ void halt(void) {
 
 void exit(int status) {
   // Terminates current user program
+  
   thread_current()->exit_status = status;
   thread_exit();
 }
@@ -233,7 +234,8 @@ bool create(const char *file, unsigned initial_size) {
   // Creates a new file
   // file: file name, initial_size: size in bytes
   struct thread *cur = thread_current();
-  
+  debug_printf("create(): thread is [%s]\n", cur->name);
+
   if (file == NULL) {
     return -1;
   }
