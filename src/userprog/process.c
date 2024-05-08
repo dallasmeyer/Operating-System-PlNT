@@ -57,6 +57,7 @@ process_execute (const char *file_name)
   /* Create a new thread to execute FILE_NAME. */
   // NEW: dev-print
   debug_printf("(process_execute) creating thread process...\n");
+  thread_current()->child_loaded = 0;
   tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
   if (tid == TID_ERROR){
     // Failed to create a thread, free and return the failed thread
@@ -66,6 +67,17 @@ process_execute (const char *file_name)
   // Wait on the new user_prog thread load
   sema_down(&thread_current()->sem_child_load);
   debug_printf("(process_execute) child load finished\n");
+  // Check if the child thread loaded 
+  if(!thread_current()->child_loaded){
+    debug_printf("(process_execute) child failed to load\n");
+    // Collect the child thread element by popping it from the list
+    struct list_elem *elem_c = list_pop_front(&thread_current()->child_list); 
+    struct child *c_t = list_entry(elem_c, struct child, child_elem); 
+    // Delete the list element and the child
+    list_remove(elem_c); 
+    free(c_t);
+  }
+
   // Return tid when done 
   return tid;
 }
@@ -162,7 +174,9 @@ start_process (void *file_name_)
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
   success = load (file_name, &if_.eip, &if_.esp, user_args, arg_count);
-
+  // NEW: set the child loaded flag for parent thread that started the user program
+  debug_printf("(process_start) load success is [%d]\n", success);
+  thread_current()->parent->child_loaded = success;
 
   // Added begin print that checks if args operation
   if (strstr(user_prog, "args") != NULL) {
@@ -354,17 +368,15 @@ load (const char *file_name, void (**eip) (void), void **esp, char **user_args, 
   bool success = false;
   int i;
 
-  // Dev-print
-  //printf("~~~~~~~load()~~~~~~\n");
   /* Allocate and activate page directory. */
   t->pagedir = pagedir_create ();
   if (t->pagedir == NULL) 
     goto done;
   process_activate ();
 
-  // dev-print
-  //printf("	Opening executable file\n"); 
+
   /* Open executable file. */
+  debug_extra_printf("(process load) opening executable [%s]\n", file_name);
   file = filesys_open (file_name);
   if (file == NULL) 
     {
@@ -372,8 +384,8 @@ load (const char *file_name, void (**eip) (void), void **esp, char **user_args, 
       goto done; 
     }
 
-  // dev-print
-  //printf("	verifying headers\n");
+
+  debug_extra_printf("(process load) verifying headers\n");
   /* Read and verify executable header. */
   if (file_read (file, &ehdr, sizeof ehdr) != sizeof ehdr
       || memcmp (ehdr.e_ident, "\177ELF\1\1\1", 7)
@@ -383,12 +395,10 @@ load (const char *file_name, void (**eip) (void), void **esp, char **user_args, 
       || ehdr.e_phentsize != sizeof (struct Elf32_Phdr)
       || ehdr.e_phnum > 1024) 
     {
-      //printf ("load: %s: error loading executable\n", file_name);
+      debug_printf("(process load) %s: error loading executable\n", file_name);
       goto done; 
     }
 
-  // dev-print 
-  //printf("	Reading program headers\n");
   /* Read program headers. */
   file_ofs = ehdr.e_phoff;
   for (i = 0; i < ehdr.e_phnum; i++) 
@@ -448,8 +458,7 @@ load (const char *file_name, void (**eip) (void), void **esp, char **user_args, 
         }
     }
 
-  // dev-print 
-  //printf("	Calling to setup the stack\n");
+  debug_extra_printf("(process load) Setting up stack\n");
   /* Set up stack. */
   if (!setup_stack (esp, user_args, arg_count))
     goto done;
