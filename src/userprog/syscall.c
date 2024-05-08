@@ -221,6 +221,7 @@ void exit(int status) {
   // Terminates current user program
   
   thread_current()->exit_status = status;
+  sema_up(&thread_current()->parent->sem_child_wait); 
   thread_exit();
 }
 

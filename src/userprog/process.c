@@ -77,8 +77,6 @@ process_execute (const char *file_name)
     free(c_t);
   }
 
-  // Stops the main/parent thread from killing the child before it finishes its program 
-  sema_down(&thread_current()->sem_child_wait);
   debug_printf("(process_execute) child load finished [%s]\n", thread_current()->name);
   // Return tid when done 
   return tid;
@@ -225,6 +223,9 @@ start_process (void *file_name_)
 int
 process_wait (tid_t child_tid UNUSED) 
 {
+  
+   // Stops the main/parent thread from killing the child before it finishes its program 
+  sema_down(&thread_current()->sem_child_wait);
   return -1;
 }
 
