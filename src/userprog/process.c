@@ -55,7 +55,6 @@ process_execute (const char *file_name)
 
 
   /* Create a new thread to execute FILE_NAME. */
-  // NEW: dev-print
   debug_printf("(process_execute) creating thread process...\n");
   thread_current()->child_loaded = 0;
   tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
@@ -78,6 +77,9 @@ process_execute (const char *file_name)
     free(c_t);
   }
 
+  // Stops the main/parent thread from killing the child before it finishes its program 
+  sema_down(&thread_current()->sem_child_wait);
+  debug_printf("(process_execute) child load finished [%s]\n", thread_current()->name);
   // Return tid when done 
   return tid;
 }
@@ -104,11 +106,12 @@ start_process (void *file_name_)
 
   } 
   // Added begin print that checks if args operation
-  if (strstr(user_prog, "args") != NULL) {
-    printf("(args) begin\n");
-  } else {
-    printf("(%s) begin\n", user_prog);
-  }
+   // TO-DO maybe remove this, there is a begin print somewhere else
+   if (strstr(user_prog, "args") != NULL) {
+     //printf("(args) begin\n");
+   } else {
+     //printf("(%s) begin\n", user_prog);
+   }
 
 
   // NEW: parse and save the user arguments
@@ -117,7 +120,6 @@ start_process (void *file_name_)
   if(user_args == NULL){
 	// Failed to allocate enough space for user args
 	// return -1, this print might need to change later
-  	printf("%s: exit(%d)\n", user_prog, -1); 
     // TO-DO: add thread exit here I think
   }else{
   	// Add user_prog as the first element
@@ -155,14 +157,14 @@ start_process (void *file_name_)
  
 
   // For loop to print out the user prog paraemters
-  if (strstr(user_prog, "args") != NULL) printf("(args) argc = %d\n", arg_count); 
+  // if (strstr(user_prog, "args") != NULL) printf("(args) argc = %d\n", arg_count); 
   
   for(int i = 0; i < arg_count+1; i++){
     if (strstr(user_prog, "args") != NULL) {
       if (user_args[i]) {
-        printf("(args) argv[%d] = '%s'\n", i, user_args[i]); 
+        // printf("(args) argv[%d] = '%s'\n", i, user_args[i]); 
       } else {
-        printf("(args) argv[%d] = null\n", i); 
+        // printf("(args) argv[%d] = null\n", i); 
       }
     }
   }; 
@@ -180,7 +182,7 @@ start_process (void *file_name_)
 
   // Added begin print that checks if args operation
   if (strstr(user_prog, "args") != NULL) {
-    printf("(args) end\n");
+    // printf("(args) end\n");
   }
   
   // NEW: Free allocated memory from up above
@@ -249,6 +251,8 @@ process_exit (void)
     free(c_t);
   }
   debug_printf("(process_exit) Child threads destroyed\n");  
+
+  // FIXME: deallocate file memory
   
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */

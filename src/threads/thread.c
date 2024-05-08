@@ -210,6 +210,10 @@ thread_create (const char *name, int priority,
   c_t->tid = tid; 
   list_push_back(&thread_current()->child_list, &c_t->child_elem);
 
+  // NEW: file list
+  t->fd_ct = 1;
+  list_init (&t->list_files);
+
 
   /* Add to run queue. */
   thread_unblock (t);
@@ -295,6 +299,7 @@ thread_exit (void)
 {
   ASSERT (!intr_context ());
 
+sema_up(&thread_current()->parent->sem_child_wait); 
 #ifdef USERPROG
   process_exit ();
 #endif

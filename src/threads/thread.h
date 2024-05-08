@@ -102,6 +102,10 @@ struct thread
 
     // NEW: exit status code
     int exit_status; 
+
+    // NEW: thread file list
+    struct list list_files;
+    int fd_ct;
     
     
     // NEW: Used for communicating between parent and children threads
