@@ -8,13 +8,14 @@
 #include <syscall-nr.h>
 
 // used to toggle print statements
-//#define debug_printf(fmt, ...) printf(fmt, ##__VA_ARGS__)
-#define debug_printf(fmt, ...) // Define as empty if debugging is disabled
+#define debug_printf(fmt, ...) printf(fmt, ##__VA_ARGS__)
+// #define debug_printf(fmt, ...) // Define as empty if debugging is disabled
 
 
 static void syscall_handler(struct intr_frame *);
 bool valid_addr(void * vaddr);
 
+struct file_inst *locate_file (int);
 
 void syscall_init(void) {
   intr_register_int(0x30, 3, INTR_ON, syscall_handler, "syscall");
@@ -70,6 +71,14 @@ static void syscall_handler(struct intr_frame *f UNUSED) {
   // Dereference the stack pointer into the system call function number
   int syscall_funct = *stack_p;
   // Dev print statement:
+  
+  if ((syscall_funct != SYS_EXIT) && (syscall_funct != SYS_WRITE)) {
+    if (!valid_addr(*(stack_p+1))) {
+      exit(-1);
+    }
+  }
+
+  const char *file;
 
   switch (syscall_funct) {
 
@@ -101,13 +110,13 @@ static void syscall_handler(struct intr_frame *f UNUSED) {
 	  case SYS_CREATE: 
       debug_printf("(syscall) syscall_funct is [SYS_CREATE]\n");
       debug_printf("s1:%s,s2:%u,s3:%u,s4:%u\n", *(stack_p+1), *(stack_p+2), *(stack_p+3), *(stack_p+4));
-      if (!valid_addr(*(stack_p+1)) || !valid_addr(*(stack_p+2))) {
+      if (!valid_addr(*(stack_p+2))) {
         debug_printf("create(): invalid pointers!\n");
         exit(-1);
         return;
       }
 
-      const char * file = *(stack_p+1);
+      file = *(stack_p+1);
       unsigned size = *(stack_p+2);
       
       bool result = create(file,size);
@@ -125,6 +134,8 @@ static void syscall_handler(struct intr_frame *f UNUSED) {
 	  // Case 7: Open a file 
 	  case SYS_OPEN: 
       debug_printf("(syscall) syscall_funct is [SYS_OPEN]\n");
+      file = *(stack_p+1);
+      f->eax = open(file);
       break; 
 
 	  // Case 8: Obtain a files size
@@ -140,6 +151,8 @@ static void syscall_handler(struct intr_frame *f UNUSED) {
 	  // Case 10: Write to a file 
 	  case SYS_WRITE: 
       debug_printf("(syscall) syscall_funct is [SYS_WRITE]\n");
+      
+      write(*(stack_p+5), *(stack_p+6),*(stack_p+7));
       break; 
 
 	  // Case 11: Change a position in a file
@@ -230,10 +243,58 @@ bool remove(const char *file) {
   return result;
 }
 
+struct file_inst
+{
+  // set file pointer
+  struct file * file_p;
+  // file descriptor
+  int fd;
+  // list element
+  struct list_elem file_list_e;
+};
+
+
+struct file_inst *locate_file (int fd) {
+  // get current thread
+  struct thread * cur = thread_current();
+  struct list_elem * list_e;
+
+  // iterate through list of files until locate correct file descriptor element
+  for (list_e = list_begin(&cur->list_files); list_e != list_end(&cur->list_files); list_e = list_next(list_e)) {
+    struct file_inst * fd_e = list_entry(list_e, struct file_inst, file_list_e);
+    if (fd_e->fd == fd) {
+      return fd_e;
+    }
+  }
+
+  debug_printf("locate_file(): returned NULL!\n");
+
+  return NULL;
+}
+
 int open(const char *file) {
   // Opens the file, returning non-negative integer, -1, or the fd
-  // TODO:
-  return 0;
+  
+  // printf("filesys OPENING!\n");
+  lock_acquire(&file_lock);
+  struct file *file_p = filesys_open(file);
+  lock_release(&file_lock);
+  // printf("filesys DONE!\n");
+
+  if (file_p == NULL) {
+    return -1;
+  }
+
+  struct inode *i;
+  char * f_name;
+
+  // allocate memory for new file element, and instantiate struct
+  struct file_inst * file_elem = malloc(sizeof(struct file_inst));
+  file_elem->fd = ++thread_current()->fd_ct;
+  file_elem->file_p = file_p;
+  list_push_front(&thread_current()->list_files,&file_elem->file_list_e);
+
+  return file_elem->fd;
 }
 
 int filesize(int fd) {
@@ -258,14 +319,24 @@ int write(int fd, const void *buffer, unsigned size) {
     return size;
   }
 
-  // FIXME: implement getting file struct
-  // struct file f_inst =
+  struct file_inst * fd_e = locate_file(fd);
+  // printf("fd_e->fd:%d\n",fd_e->fd);
 
+  if (fd_e == NULL) {
+    return -1;
+    printf("write(): fd_e NULL!\n");
+  }
+  
   lock_acquire(&file_lock);
-  // off_t result = file_write(file_inst, buffer, size);
+  // write to the file
+  printf("AAAAAAAAAAAAAA\n");
+  int result = file_write(fd_e->file_p, buffer, size);
   lock_release(&file_lock);
+  printf("ZZZZZZZZZZZZZZZ\n");
 
-  return 0;
+  printf("result:%d\n", result);
+
+  return result;
 }
 
 // void seek (int fd, unsigned position);

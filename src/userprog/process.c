@@ -235,6 +235,8 @@ process_exit (void)
     free(c_t);
   }
   debug_printf("(process_exit) Child threads destroyed\n");  
+
+  // FIXME: deallocate file memory
   
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
