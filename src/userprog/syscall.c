@@ -39,14 +39,7 @@ bool valid_addr(void * vaddr){
       debug_printf("invalid page\n");
       return false;
   }
-  // Check if the virtual address is above PHYS_BASE
-  if (vaddr >= PHYS_BASE) {
-      debug_printf("Invalid vaddr: above user address space\n");
-      // Terminate the process with exit code -1
-      thread_current()->exit_status = -1;
-      thread_exit();
-  }
-  
+
   // Check if the virtual address is not a null pointer
   if (vaddr == NULL) {
       debug_printf("Nonetype vaddr\n");
@@ -67,7 +60,8 @@ static void syscall_handler(struct intr_frame *f UNUSED) {
 
   // Get stack pointer via "esp" of intr_frame
   int *stack_p = f->esp;
-  debug_printf("(syscall_handler) Stack pointer in syscall_handler: 0x%x\n", (uintptr_t)f->esp);
+  debug_printf("(syscall_handler) Stack pointer : 0x%x and funct [%d]\n", 
+      (uintptr_t)f->esp, *stack_p);
 
   // check if virtual address
   if (!valid_addr(stack_p)) {
@@ -126,12 +120,10 @@ static void syscall_handler(struct intr_frame *f UNUSED) {
 
 	  // Case 5: Create a file
 	  case SYS_CREATE: 
+      debug_printf("(syscall) syscall_funct is [SYS_CREATE]\n");
       if(!valid_addr(stack_p+1) || !valid_addr(stack_p+2)) 
       {exit(-1);}
-      debug_printf("(syscall) syscall_funct is [SYS_CREATE]\n");
-      debug_printf("s1:%s,s2:%u,s3:%u,s4:%u\n", *(stack_p+1), *(stack_p+2), *(stack_p+3), *(stack_p+4));
-      if (!valid_addr(stack_p+1) || !valid_addr(stack_p+2)) {exit(-1);}
-
+      debug_printf("s1:%s,s2:%u\n", *(stack_p+1), *(stack_p+2));
       file = *(stack_p+1);
       unsigned size = *(stack_p+2);
       
@@ -167,7 +159,8 @@ static void syscall_handler(struct intr_frame *f UNUSED) {
 	  case SYS_READ:
        //if(!valid_add()) {exit(-1);}
       debug_printf("(syscall) syscall_funct is [SYS_READ]\n");
-      if (!valid_addr((stack_p+2))  || !valid_addr((stack_p+3))) {exit(-1);}
+      if (!valid_addr((stack_p+1))  || !valid_addr((stack_p+2))  
+          || !valid_addr((stack_p+3))) {exit(-1);}
       
       int fd = *(stack_p+1);
       void * buf = *(stack_p+2);
@@ -179,8 +172,8 @@ static void syscall_handler(struct intr_frame *f UNUSED) {
 	  case SYS_WRITE: 
        //if(!valid_add()) {exit(-1);}
       debug_printf("(syscall) syscall_funct is [SYS_WRITE]\n");
-      
-      if (!valid_addr((stack_p+1)) || !valid_addr((stack_p+2))  || !valid_addr((stack_p+3))) {exit(-1);}
+      if (!valid_addr((stack_p+1)) || !valid_addr((stack_p+2))  
+          || !valid_addr((stack_p+3))) {exit(-1);}
       debug_printf("s1:%u,s2:%u,s3:%u\n", *(stack_p+1), *(stack_p+2), *(stack_p+3));
       fd = *(stack_p+1);
       buf = *(stack_p+2);
@@ -192,7 +185,7 @@ static void syscall_handler(struct intr_frame *f UNUSED) {
 	  case SYS_SEEK: 
        //if(!valid_add()) {exit(-1);}
       debug_printf("(syscall) syscall_funct is [SYS_SEEK]\n");
-      if (!valid_addr((stack_p+2))) exit (-1);
+      if (!valid_addr((stack_p+2)) || !valid_addr((stack_p+2))) exit (-1);
       
       seek(*(stack_p+1),*(stack_p+2));
       break; 
