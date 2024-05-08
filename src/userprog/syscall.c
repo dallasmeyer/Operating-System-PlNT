@@ -8,8 +8,8 @@
 #include <syscall-nr.h>
 
 // used to toggle print statements
-//#define debug_printf(fmt, ...) printf(fmt, ##__VA_ARGS__)
-#define debug_printf(fmt, ...) // Define as empty if debugging is disabled
+#define debug_printf(fmt, ...) printf(fmt, ##__VA_ARGS__)
+//#define debug_printf(fmt, ...) // Define as empty if debugging is disabled
 
 
 static void syscall_handler(struct intr_frame *);
@@ -116,6 +116,8 @@ static void syscall_handler(struct intr_frame *f UNUSED) {
 	  case SYS_WAIT: 
       //if(!valid_add()) {exit(-1);}
       debug_printf("(syscall) syscall_funct is [SYS_WAIT]\n");
+      if(!valid_addr(stack_p+1)) {exit(-1);}
+      f->eax = wait(*(stack_p+1));
       break; 
 
 	  // Case 5: Create a file
@@ -219,15 +221,19 @@ void halt(void) {
 
 void exit(int status) {
   // Terminates current user program
-  
+  debug_printf("(exit) Exiting program\n");
   thread_current()->exit_status = status;
-  sema_up(&thread_current()->parent->sem_child_wait); 
+  if(thread_current()->parent->child_waiting == thread_current()->tid){
+    // If the parent thread is waiting on us, release them
+    debug_printf("(exit) Releasing parent\n");
+    sema_up(&thread_current()->parent->sem_child_wait); 
+  }
   thread_exit();
 }
 
 pid_t exec(const char *cmd_line) {
   // Runs executable
-  debug_printf("exec(): executing!");
+  debug_printf("exec(): executing!\n");
 
   lock_acquire(&process_lock);
   pid_t result = process_execute(cmd_line);
@@ -238,9 +244,8 @@ pid_t exec(const char *cmd_line) {
 
 int wait(pid_t pid) {
   // Waits for child "pid" and retrieves its exit status
-  // FIXME: Need to correctly implement process_wait in process.c
-  int id = 0;
-  return process_wait(id);
+  tid_t tid = process_wait(pid); 
+  return tid;
 }
 
 bool create(const char *file, unsigned initial_size) {

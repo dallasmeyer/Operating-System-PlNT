@@ -19,8 +19,8 @@
 #include "threads/vaddr.h"
 
 // Higher level debugger
-//#define debug_printf(fmt, ...) printf(fmt, ##__VA_ARGS__)
-#define debug_printf(fmt, ...) // Uncomment to turn debugger off and comment above
+#define debug_printf(fmt, ...) printf(fmt, ##__VA_ARGS__)
+//#define debug_printf(fmt, ...) // Uncomment to turn debugger off and comment above
 //debug_printf("()\n");
 // Deeper level debugger
 //#define debug_extra_printf(fmt, ...) printf(fmt, ##__VA_ARGS__)
@@ -69,14 +69,16 @@ process_execute (const char *file_name)
   // Check if the child thread loaded 
   if(!thread_current()->child_loaded){
     debug_printf("(process_execute) child failed to load\n");
-    // Collect the child thread element by popping it from the list
-    struct list_elem *elem_c = list_pop_front(&thread_current()->child_list); 
-    struct child *c_t = list_entry(elem_c, struct child, child_elem); 
-    // Delete the list element and the child
-    list_remove(elem_c); 
-    free(c_t);
+    // Look for the child thread just created
+    struct child *c_t = find_child(tid, thread_current());
+    // If we found the child and it failed to load, delete it
+    if (c_t != NULL){
+      list_remove(&c_t->child_elem); 
+      free(c_t);
+    }
   }
-
+  // If the thread loaded we move onto waiting on the child to finish after 
+  // returning its TID
   debug_printf("(process_execute) child load finished [%s]\n", thread_current()->name);
   // Return tid when done 
   return tid;
@@ -221,11 +223,30 @@ start_process (void *file_name_)
    This function will be implemented in problem 2-2.  For now, it
    does nothing. */
 int
-process_wait (tid_t child_tid UNUSED) 
+process_wait (tid_t child_tid) 
 {
   
-   // Stops the main/parent thread from killing the child before it finishes its program 
+  // Check if the child list is empty first to make sure this thread 
+  // isnt waiting on nothing
+  debug_printf("(process_wait) Checking if child list is empty\n");
+  if(list_empty(&thread_current()->child_list)) {return -1;}
+
+  // Check if the child we are waiting on is apart of our wait child list
+  debug_printf("(process_wait) Checking if child was added\n");
+  struct child *c_t = find_child(child_tid, thread_current()); 
+  // Failed to find the child return
+  if (c_t == NULL) {return -1;}
+
+  // Set what child we are waiting on
+  debug_printf("(process_wait) Waiting on child [%d]\n", child_tid);
+  thread_current()->child_waiting = child_tid; 
+  // Wait on child to finish its program so we dont kill it too early 
   sema_down(&thread_current()->sem_child_wait);
+  // Kill the child once it is done
+  debug_printf("(process_wait) killing child\n");
+  list_remove(&c_t->child_elem); 
+  free(c_t);
+
   return -1;
 }
 

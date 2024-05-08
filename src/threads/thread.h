@@ -110,10 +110,11 @@ struct thread
     
     // NEW: Used for communicating between parent and children threads
     struct thread *parent;
-    struct semaphore sem_child_load;
-    struct semaphore sem_child_wait;
-    struct list child_list; 
-    int child_loaded;
+    struct semaphore sem_child_load;   // Sem forcing parent thread to wait on a child to load
+    struct semaphore sem_child_wait;   // Sem forcing the parent thread to wait on child 
+    struct list child_list;            // List of children threads 
+    int child_loaded;                  // Flag saying if the child loaded 
+    tid_t child_waiting;               // Child the thread is waiting on 
 
     /* Owned by thread.c. */
     unsigned magic;                     /**< Detects stack overflow. */
@@ -163,5 +164,8 @@ int thread_get_nice (void);
 void thread_set_nice (int);
 int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
+
+// Returns the child thread being searched for
+struct child* find_child(tid_t tid, struct thread *cur);
 
 #endif /**< threads/thread.h */
