@@ -16,8 +16,8 @@
 #endif
 
 // Toggleable debugger
-//#define debug_printf(fmt, ...) printf(fmt, ##__VA_ARGS__)
-#define debug_printf(fmt, ...) // Define as empty if debugging is disabled
+#define debug_printf(fmt, ...) printf(fmt, ##__VA_ARGS__)
+//define debug_printf(fmt, ...) // Define as empty if debugging is disabled
 
 /** Random value for struct thread's `magic' member.
    Used to detect stack overflow.  See the big comment at the top
@@ -206,14 +206,12 @@ thread_create (const char *name, int priority,
   t->exit_status = -1;
   // NEW: Used for communicating between the parent and children threads
   t->parent = thread_current();                     // Newly created threads pointer to parent 
+  t->parent->child_loaded = 0;
+  t->parent->child_done = 0;
   struct child *c_t = malloc(sizeof(struct child)); // Creating new child for parent thread to use
   c_t->tid = tid; 
   list_push_back(&thread_current()->child_list, &c_t->child_elem);
-
-  // NEW: file list
   t->fd_ct = 1;
-  list_init (&t->list_files);
-
 
   /* Add to run queue. */
   thread_unblock (t);
@@ -298,8 +296,6 @@ void
 thread_exit (void) 
 {
   ASSERT (!intr_context ());
-
-sema_up(&thread_current()->parent->sem_child_wait); 
 #ifdef USERPROG
   process_exit ();
 #endif
@@ -485,6 +481,7 @@ init_thread (struct thread *t, const char *name, int priority)
   sema_init(&t->sem_child_load, 0);
   sema_init(&t->sem_child_wait,0);
   list_init(&t->child_list);
+  list_init(&t->list_files);
 
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);
@@ -600,7 +597,31 @@ allocate_tid (void)
 
   return tid;
 }
-
+
 /** Offset of `stack' member within `struct thread'.
    Used by switch.S, which can't figure it out on its own. */
 uint32_t thread_stack_ofs = offsetof (struct thread, stack);
+
+// Returns the child thread being searched for
+struct child* find_child(tid_t tid, struct thread *cur) {
+    // Initialize the element we are searching for 
+    struct list_elem *elem_c = list_begin(&cur->child_list);
+    
+    // Iterate through the list of children till we find the 
+    // correct one, or dont find it at all
+    while (elem_c != list_end(&cur->child_list)) {
+        struct child *c_t = list_entry(elem_c, struct child, child_elem); 
+        
+        // Check if we found the child
+        if (c_t->tid == tid) {
+            // Found the child! return it
+            return c_t; 
+        }
+        
+        // Move to the child
+        elem_c = list_next(elem_c);
+    }
+
+    // Child thread not found
+    return NULL;
+}

@@ -21,6 +21,7 @@ void syscall_init(void) {
   lock_init(&process_lock);
 }
 
+
 bool valid_addr(void * vaddr){
   // Check if the virtual address is in the user address space 
   if (!is_user_vaddr(vaddr)) {
@@ -116,6 +117,8 @@ static void syscall_handler(struct intr_frame *f UNUSED) {
 	  case SYS_WAIT: 
       //if(!valid_add()) {exit(-1);}
       debug_printf("(syscall) syscall_funct is [SYS_WAIT]\n");
+      if(!valid_addr(stack_p+1)) {exit(-1);}
+      f->eax = wait(*(stack_p+1));
       break; 
 
 	  // Case 5: Create a file
@@ -143,8 +146,8 @@ static void syscall_handler(struct intr_frame *f UNUSED) {
 
 	  // Case 7: Open a file 
 	  case SYS_OPEN: 
-       //if(!valid_add()) {exit(-1);}
       debug_printf("(syscall) syscall_funct is [SYS_OPEN]\n");
+      if(!valid_addr(stack_p+1)){exit(-1);}
       file = *(stack_p+1);
       f->eax = open(file);
       break; 
@@ -160,7 +163,8 @@ static void syscall_handler(struct intr_frame *f UNUSED) {
        //if(!valid_add()) {exit(-1);}
       debug_printf("(syscall) syscall_funct is [SYS_READ]\n");
       if (!valid_addr((stack_p+1))  || !valid_addr((stack_p+2))  
-          || !valid_addr((stack_p+3))) {exit(-1);}
+          || !valid_addr((stack_p+3)))
+          {exit(-1);}
       
       int fd = *(stack_p+1);
       void * buf = *(stack_p+2);
@@ -173,11 +177,12 @@ static void syscall_handler(struct intr_frame *f UNUSED) {
        //if(!valid_add()) {exit(-1);}
       debug_printf("(syscall) syscall_funct is [SYS_WRITE]\n");
       if (!valid_addr((stack_p+1)) || !valid_addr((stack_p+2))  
-          || !valid_addr((stack_p+3))) {exit(-1);}
+          || !valid_addr((stack_p+3)) || !valid_addr(*(stack_p+2))) {exit(-1);}
       debug_printf("s1:%u,s2:%u,s3:%u\n", *(stack_p+1), *(stack_p+2), *(stack_p+3));
       fd = *(stack_p+1);
       buf = *(stack_p+2);
       sz = *(stack_p+3);
+      //if(!valid_addr(buf+sz))
       f->eax = write(fd, buf, sz);
       break; 
 
@@ -219,14 +224,21 @@ void halt(void) {
 
 void exit(int status) {
   // Terminates current user program
-  
+  debug_printf("(exit) Exiting program\n");
   thread_current()->exit_status = status;
+  thread_current()->parent->child_done = 1; 
+  if(thread_current()->parent->child_waiting == thread_current()->tid){
+    // If the parent thread is waiting on us, release them
+    debug_printf("(exit) Releasing parent\n");
+    sema_up(&thread_current()->parent->sem_child_wait); 
+  }
+  
   thread_exit();
 }
 
 pid_t exec(const char *cmd_line) {
   // Runs executable
-  debug_printf("exec(): executing!");
+  debug_printf("exec(): executing!\n");
 
   lock_acquire(&process_lock);
   pid_t result = process_execute(cmd_line);
@@ -237,9 +249,8 @@ pid_t exec(const char *cmd_line) {
 
 int wait(pid_t pid) {
   // Waits for child "pid" and retrieves its exit status
-  // FIXME: Need to correctly implement process_wait in process.c
-  int id = 0;
-  return process_wait(id);
+  tid_t tid = process_wait(pid); 
+  return tid;
 }
 
 bool create(const char *file, unsigned initial_size) {
@@ -253,13 +264,11 @@ bool create(const char *file, unsigned initial_size) {
   }
 
   // using locks to prevent race conditions
-  debug_printf("create(): attempting to acquire file lock!\n");
+  debug_printf("create(): attempting to acquire file lock\n");
   lock_acquire(&file_lock);
-  debug_printf("create(): attempting to create!\n");
   int result = filesys_create(file, initial_size);
-  debug_printf("create(): result = %d!\n", result); 
   lock_release(&file_lock);
-  debug_printf("create(): released file lock!\n");
+  debug_printf("create(): result = %d!\n", result); 
   
   return result;
 }
@@ -298,24 +307,32 @@ struct file_inst *locate_file (int fd) {
 
 int open(const char *file) {
   // Opens the file, returning non-negative integer, -1, or the fd
-  
+  debug_printf("(open) Opening file\n");
   lock_acquire(&file_lock);
   struct file *file_p = filesys_open(file);
   lock_release(&file_lock);
-
+  // Return if we failed to open the file
   if (file_p == NULL) {
+    debug_printf("(open) failed to open file\n");
     return -1;
   }
 
-  struct inode *i;
-  char * f_name;
-
-  // allocate memory for new file element, and instantiate struct
-  struct file_inst * file_elem = malloc(sizeof(struct file_inst));
+   // Allocate memory for new file element and instantiate the struct
+    debug_printf("(open) allocating memory\n");
+    struct file_inst *file_elem = malloc(sizeof(struct file_inst));
+    if (file_elem == NULL) {
+        // Close and return if we failed to allocate
+        file_close(file_p); 
+        return -1;
+    }
+  debug_printf("(open) initializing element\n");
+  // Initialize file element
   file_elem->fd = ++thread_current()->fd_ct;
   file_elem->file_p = file_p;
+  // Insert the file elements
+  debug_printf("(open) inserting item\n");
   list_push_front(&thread_current()->list_files,&file_elem->file_list_e);
-
+  debug_printf("(open) Finished\n");
   return file_elem->fd;
 }
 
@@ -326,12 +343,11 @@ int filesize(int fd) {
 
 int read(int fd, void *buffer, unsigned size) {
   // Read size bytes from fd into buffer,
-  
   // check if keyboard input, as fd = 0 for user writes.
   int cur_len = 0;
   if (fd == 0) {
     // continue taking keyboard input
-    while (cur_len < size) {
+    while (cur_len < STDIN_FILENO) {
       *((char *) buffer + cur_len) = input_getc();
       cur_len++;
     }
@@ -358,16 +374,17 @@ int write(int fd, const void *buffer, unsigned size) {
   // Check if console out, as fd = 1 for console writes.
   
   debug_printf("(write) fd:%d\n", fd);
-  if (fd == 1) {
+  if (fd == STDOUT_FILENO) {
     putbuf(buffer, size);
     return size;
   }
+  debug_printf("(write) fd:%d Done\n", fd);
 
   struct file_inst * fd_e = locate_file(fd);
 
   if (fd_e == NULL) {
     return -1;
-    debug_printf("write(): fd_e NULL!\n");
+    debug_printf("(write) fd_e NULL!\n");
   }
   
   lock_acquire(&file_lock);
@@ -375,11 +392,12 @@ int write(int fd, const void *buffer, unsigned size) {
   int result = file_write(fd_e->file_p, buffer, size);
   lock_release(&file_lock);
 
-  debug_printf("result:%d\n", result);
+  debug_printf("(write) result:%d\n", result);
 
   return result;
 
 }
+
 
 void seek (int fd, unsigned position) {
   struct file_inst * file_elem = locate_file(fd);

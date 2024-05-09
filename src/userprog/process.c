@@ -56,31 +56,31 @@ process_execute (const char *file_name)
 
   /* Create a new thread to execute FILE_NAME. */
   debug_printf("(process_execute) creating thread process...\n");
-  thread_current()->child_loaded = 0;
   tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
   if (tid == TID_ERROR){
     // Failed to create a thread, free and return the failed thread
     palloc_free_page (fn_copy); 
     return tid;
-   }
+  }
   // Wait on the new user_prog thread load
   sema_down(&thread_current()->sem_child_load);
   debug_printf("(process_execute) child load finished\n");
   // Check if the child thread loaded 
   if(!thread_current()->child_loaded){
     debug_printf("(process_execute) child failed to load\n");
-    // Collect the child thread element by popping it from the list
-    struct list_elem *elem_c = list_pop_front(&thread_current()->child_list); 
-    struct child *c_t = list_entry(elem_c, struct child, child_elem); 
-    // Delete the list element and the child
-    list_remove(elem_c); 
-    free(c_t);
+    // Look for the child thread just created
+    struct child *c_t = find_child(tid, thread_current());
+    // If we found the child and it failed to load, delete it
+    if (c_t != NULL){
+      list_remove(&c_t->child_elem); 
+      free(c_t);
+    }
   }
-
-  // Stops the main/parent thread from killing the child before it finishes its program 
-  sema_down(&thread_current()->sem_child_wait);
+  // If the thread loaded we move onto waiting on the child to finish after 
+  // returning its TID
   debug_printf("(process_execute) child load finished [%s]\n", thread_current()->name);
   // Return tid when done 
+
   return tid;
 }
 
@@ -101,18 +101,9 @@ start_process (void *file_name_)
   user_prog = strtok_r(file_name_, " ", &save_ptr);
   if(user_prog == NULL){
   	// If we failed to find the user prog 
-	// or any other issue, exit
-	return;
-
+	  // or any other issue, exit
+	  return;
   } 
-  // Added begin print that checks if args operation
-   // TO-DO maybe remove this, there is a begin print somewhere else
-   if (strstr(user_prog, "args") != NULL) {
-     //printf("(args) begin\n");
-   } else {
-     //printf("(%s) begin\n", user_prog);
-   }
-
 
   // NEW: parse and save the user arguments
   // allocate memory for the user arguments
@@ -223,8 +214,36 @@ start_process (void *file_name_)
    This function will be implemented in problem 2-2.  For now, it
    does nothing. */
 int
-process_wait (tid_t child_tid UNUSED) 
+process_wait (tid_t child_tid) 
 {
+  
+  
+  // Check if the child list is empty first to make sure this thread 
+  // isnt waiting on nothing
+  debug_printf("(process_wait) Checking if child list is empty\n");
+  if(list_empty(&thread_current()->child_list)) {return -1;}
+
+  // Check if the child we are waiting on is apart of our wait child list
+  debug_printf("(process_wait) Checking if child was added\n");
+  struct child *c_t = find_child(child_tid, thread_current()); 
+  // Failed to find the child return
+  if (c_t == NULL) {return -1;}
+
+  // Set what child we are waiting on
+  thread_current()->child_waiting = child_tid;
+
+  // Wait on the child if they arent finished yet
+  if(!thread_current()->child_done){
+    debug_printf("(process_wait) Waiting on child [%d]\n", child_tid);
+    // Wait on child to finish its program so we dont kill it too early 
+  sema_down(&thread_current()->sem_child_wait);
+  } 
+  
+  // Kill the child once it is done
+  debug_printf("(process_wait) killing child\n");
+  list_remove(&c_t->child_elem); 
+  free(c_t);
+
   return -1;
 }
 
@@ -288,7 +307,7 @@ process_activate (void)
      interrupts. */
   tss_update ();
 }
-
+
 /** We load ELF binaries.  The following definitions are taken
    from the ELF specification, [ELF1], more-or-less verbatim.  */
 
