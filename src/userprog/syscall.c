@@ -50,18 +50,27 @@ bool valid_addr(void *vaddr) {
 }
 
 bool valid_str(char *str){
-    // Check if the virtual address is in the user address space
+    // Check if the str is in the user address space
     if (!is_user_vaddr(str)) {
         debug_printf("invalid str addr\n");
         return false;
     }
 
-    // Check if the string is in the user address space 
-    if(pagedir_get_page(thread_current()->pagedir, (void *) str) == NULL){
-      debug_printf("invalid str page\n");
+    // Check if the string is in the correct page
+    char *page_str = pagedir_get_page(thread_current()->pagedir, (void *) str);
+    if(page_str == NULL){
+      // Checking if the first part is in the correct page
+      debug_printf("invalid str page NULL\n");
+      return false;
+    }else{
+      // Checking if the last part + null terminator is in the correct page
+      char *end_str = str + strlen(page_str) + 1;
+      if (!is_user_vaddr(end_str) || pagedir_get_page(thread_current()->pagedir, end_str) == NULL) {
         return false;
+  	  }
     }
-
+    // Otherwise return true
+    return true;
 }
 
 static void syscall_handler(struct intr_frame *f UNUSED) {
@@ -103,7 +112,7 @@ static void syscall_handler(struct intr_frame *f UNUSED) {
 	  
 	  // Case 3: Start another process
 	  case SYS_EXEC: 
-      if(!valid_addr((stack_p + 1)) || !valid_addr(*(stack_p + 1))) {exit(-1);}
+      if(!valid_addr((stack_p + 1)) || !valid_str(*(stack_p + 1))) {exit(-1);}
       debug_printf("(syscall) syscall_funct is [SYS_EXEC]\n");
       f->eax = exec(*(stack_p + 1));
       break; 
@@ -221,7 +230,13 @@ void exit(int status) {
   // Terminates current user program
   debug_printf("(exit) [%s] Exiting program\n", thread_current()->name);
   debug_printf("  (exit) with status [%d]\n", status);
-  thread_current()->exit_status = status;
+  
+  if (thread_current()->child_loaded != -1){
+   thread_current()->exit_status = status;
+  }else{
+    thread_current()->exit_status = -1;
+  }
+  
   thread_current()->parent->child_done = 1; 
   if(thread_current()->parent->child_waiting == thread_current()->tid){
     // If the parent thread is waiting on us, release them
