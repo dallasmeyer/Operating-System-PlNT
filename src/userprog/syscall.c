@@ -8,8 +8,8 @@
 #include <syscall-nr.h>
 
 // used to toggle print statements
-#define debug_printf(fmt, ...) printf(fmt, ##__VA_ARGS__)
-//#define debug_printf(fmt, ...) // Define as empty if debugging is disabled
+//#define debug_printf(fmt, ...) printf(fmt, ##__VA_ARGS__)
+#define debug_printf(fmt, ...) // Define as empty if debugging is disabled
 
 
 static void syscall_handler(struct intr_frame *);
@@ -20,6 +20,7 @@ void syscall_init(void) {
   lock_init(&file_lock);
   lock_init(&process_lock);
 }
+
 
 bool valid_addr(void * vaddr){
   // Check if the virtual address is in the user address space 
@@ -162,7 +163,7 @@ static void syscall_handler(struct intr_frame *f UNUSED) {
        //if(!valid_add()) {exit(-1);}
       debug_printf("(syscall) syscall_funct is [SYS_READ]\n");
       if (!valid_addr((stack_p+1))  || !valid_addr((stack_p+2))  
-          || !valid_addr((stack_p+3)) || !valid_addr(*(stack_p+3))) 
+          || !valid_addr((stack_p+3)))
           {exit(-1);}
       
       int fd = *(stack_p+1);
@@ -176,11 +177,12 @@ static void syscall_handler(struct intr_frame *f UNUSED) {
        //if(!valid_add()) {exit(-1);}
       debug_printf("(syscall) syscall_funct is [SYS_WRITE]\n");
       if (!valid_addr((stack_p+1)) || !valid_addr((stack_p+2))  
-          || !valid_addr((stack_p+3))) {exit(-1);}
+          || !valid_addr((stack_p+3)) || !valid_addr(*(stack_p+2))) {exit(-1);}
       debug_printf("s1:%u,s2:%u,s3:%u\n", *(stack_p+1), *(stack_p+2), *(stack_p+3));
       fd = *(stack_p+1);
       buf = *(stack_p+2);
       sz = *(stack_p+3);
+      //if(!valid_addr(buf+sz))
       f->eax = write(fd, buf, sz);
       break; 
 
@@ -262,13 +264,11 @@ bool create(const char *file, unsigned initial_size) {
   }
 
   // using locks to prevent race conditions
-  debug_printf("create(): attempting to acquire file lock!\n");
+  debug_printf("create(): attempting to acquire file lock\n");
   lock_acquire(&file_lock);
-  debug_printf("create(): attempting to create!\n");
   int result = filesys_create(file, initial_size);
-  debug_printf("create(): result = %d!\n", result); 
   lock_release(&file_lock);
-  debug_printf("create(): released file lock!\n");
+  debug_printf("create(): result = %d!\n", result); 
   
   return result;
 }
@@ -397,6 +397,7 @@ int write(int fd, const void *buffer, unsigned size) {
   return result;
 
 }
+
 
 void seek (int fd, unsigned position) {
   struct file_inst * file_elem = locate_file(fd);

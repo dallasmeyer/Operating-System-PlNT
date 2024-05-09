@@ -19,8 +19,8 @@
 #include "threads/vaddr.h"
 
 // Higher level debugger
-#define debug_printf(fmt, ...) printf(fmt, ##__VA_ARGS__)
-//#define debug_printf(fmt, ...) // Uncomment to turn debugger off and comment above
+//#define debug_printf(fmt, ...) printf(fmt, ##__VA_ARGS__)
+#define debug_printf(fmt, ...) // Uncomment to turn debugger off and comment above
 //debug_printf("()\n");
 // Deeper level debugger
 //#define debug_extra_printf(fmt, ...) printf(fmt, ##__VA_ARGS__)
@@ -80,6 +80,7 @@ process_execute (const char *file_name)
   // returning its TID
   debug_printf("(process_execute) child load finished [%s]\n", thread_current()->name);
   // Return tid when done 
+
   return tid;
 }
 
@@ -216,6 +217,7 @@ int
 process_wait (tid_t child_tid) 
 {
   
+  
   // Check if the child list is empty first to make sure this thread 
   // isnt waiting on nothing
   debug_printf("(process_wait) Checking if child list is empty\n");
@@ -305,7 +307,7 @@ process_activate (void)
      interrupts. */
   tss_update ();
 }
-
+
 /** We load ELF binaries.  The following definitions are taken
    from the ELF specification, [ELF1], more-or-less verbatim.  */
 

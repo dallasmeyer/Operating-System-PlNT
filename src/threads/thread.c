@@ -211,7 +211,7 @@ thread_create (const char *name, int priority,
   struct child *c_t = malloc(sizeof(struct child)); // Creating new child for parent thread to use
   c_t->tid = tid; 
   list_push_back(&thread_current()->child_list, &c_t->child_elem);
-
+  t->fd_ct = 1;
 
   /* Add to run queue. */
   thread_unblock (t);
