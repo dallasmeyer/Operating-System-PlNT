@@ -4,16 +4,19 @@
 #include "threads/interrupt.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
+#include "userprog/pagedir.h"
 #include <stdio.h>
 #include <syscall-nr.h>
 
 // used to toggle print statements
 //#define debug_printf(fmt, ...) printf(fmt, ##__VA_ARGS__)
 #define debug_printf(fmt, ...) // Define as empty if debugging is disabled
-
+//#define debug_extra_printf(fmt, ...) printf(fmt, ##__VA_ARGS__)
+#define debug_extra_printf(fmt, ...) // Uncomment to turn debugger off and comment above
 
 static void syscall_handler(struct intr_frame *);
 bool valid_addr(void * vaddr);
+bool valid_str(char *str);
 
 void syscall_init(void) {
   intr_register_int(0x30, 3, INTR_ON, syscall_handler, "syscall");
@@ -22,72 +25,64 @@ void syscall_init(void) {
 }
 
 
-bool valid_addr(void * vaddr){
-  // Check if the virtual address is in the user address space 
-  if (!is_user_vaddr(vaddr)) {
-      debug_printf("invalid vaddr\n");
-      return false;
-  }
-  // Get the page directory of the current thread
-  struct thread *t = thread_current();
-  if (t == NULL || t->pagedir == NULL) {
-      debug_printf("invalid thread/pagedir\n");
-      return false;
-  }
-  // Check if the page is to the correct virtual address
-  void *pagedir = t->pagedir;
-  if (pagedir_get_page(pagedir, vaddr) == NULL) {
-      debug_printf("invalid page\n");
-      return false;
-  }
+bool valid_addr(void *vaddr) {
+      // Check if the virtual address is not a null pointer
+    if (vaddr == NULL) {
+        debug_printf("Nonetype vaddr\n");
+        return false;
+    }
 
-  // Check if the virtual address is not a null pointer
-  if (vaddr == NULL) {
-      debug_printf("Nonetype vaddr\n");
-      return false;
-  }
+    // Check if the virtual address is in the user address space
+    if (!is_user_vaddr(vaddr)) {
+        debug_printf("invalid vaddr\n");
+        return false;
+    }
 
-  
-  // Return true otherwise
-  debug_printf("No issue found in vaddr\n");
-  return true;
+    // Check if the page is valid    
+    if (pagedir_get_page(thread_current()->pagedir, vaddr) == NULL) {
+        debug_printf("Invalid vaddr page\n");
+        return false;
+    }
+
+    // Return true otherwise
+    debug_extra_printf("No issue found in vaddr\n");
+    return true;
 }
 
+bool valid_str(char *str){
+    // Check if the virtual address is in the user address space
+    if (!is_user_vaddr(str)) {
+        debug_printf("invalid str addr\n");
+        return false;
+    }
+
+    // Check if the string is in the user address space 
+    if(pagedir_get_page(thread_current()->pagedir, (void *) str) == NULL){
+      debug_printf("invalid str page\n");
+        return false;
+    }
+
+}
 
 static void syscall_handler(struct intr_frame *f UNUSED) {
-  // TODO: implement system call handler
-
-  // debug_printf("(systcall) handler starting...\n");
-
   // Get stack pointer via "esp" of intr_frame
   int *stack_p = f->esp;
   debug_printf("(syscall_handler) Stack pointer : 0x%x and funct [%d]\n", 
       (uintptr_t)f->esp, *stack_p);
 
-  // check if virtual address
-  if (!valid_addr(stack_p)) {
-    debug_printf("syscall_handler(): Not a virtual address\n");
+  int stack_size = (uint32_t)PHYS_BASE - (uint32_t)f->esp;
+  debug_printf("  (syscall_handler) call stack size [%d]\n", 
+    stack_size);
+
+  // Check if stack pointer is within user address space and is mapped to a valid page
+  if (stack_size < 1 || !valid_addr(stack_p)) {
+    debug_printf("syscall_handler(): Invalid call stack ptr\n");
     exit(-1);
     return;
   }
 
   // Dereference the stack pointer into the system call function number
   int syscall_funct = *stack_p;
-  // Dev print statement:
-  
-  if ((syscall_funct != SYS_EXIT) && (syscall_funct != SYS_WRITE)) {
-    if (!valid_addr(*(stack_p+1)) || !valid_addr(stack_p+1)) {
-      exit(-1);
-    }
-  }
-
-  const char *file;
-
-  if ((syscall_funct != SYS_EXIT) && (syscall_funct != SYS_WRITE)) {
-    if (!valid_addr(*(stack_p+1))) {
-      exit(-1);
-    }
-  }
 
   switch (syscall_funct) {
 
@@ -108,7 +103,7 @@ static void syscall_handler(struct intr_frame *f UNUSED) {
 	  
 	  // Case 3: Start another process
 	  case SYS_EXEC: 
-      //if(!valid_add()) {exit(-1);}
+      if(!valid_addr((stack_p + 1)) || !valid_addr(*(stack_p + 1))) {exit(-1);}
       debug_printf("(syscall) syscall_funct is [SYS_EXEC]\n");
       f->eax = exec(*(stack_p + 1));
       break; 
@@ -127,7 +122,7 @@ static void syscall_handler(struct intr_frame *f UNUSED) {
       if(!valid_addr(stack_p+1) || !valid_addr(stack_p+2)) 
       {exit(-1);}
       debug_printf("s1:%s,s2:%u\n", *(stack_p+1), *(stack_p+2));
-      file = *(stack_p+1);
+      char *file = *(stack_p+1);
       unsigned size = *(stack_p+2);
       
       // FIXME: gets stuck at inode_create or dir_add in filesys_create
@@ -224,7 +219,8 @@ void halt(void) {
 
 void exit(int status) {
   // Terminates current user program
-  debug_printf("(exit) Exiting program\n");
+  debug_printf("(exit) [%s] Exiting program\n", thread_current()->name);
+  debug_printf("  (exit) with status [%d]\n", status);
   thread_current()->exit_status = status;
   thread_current()->parent->child_done = 1; 
   if(thread_current()->parent->child_waiting == thread_current()->tid){
