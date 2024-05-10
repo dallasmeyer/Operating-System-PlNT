@@ -123,8 +123,9 @@ struct thread
 
 // NEW: struct type to allow for threads to have children process threads
 struct child{
-   tid_t tid;                 // Child threads identifier
+   tid_t tid;                      // Child threads identifier
    struct list_elem child_elem;    // list element of child
+   int child_ret;                  // childs return value 
 }; 
 
 

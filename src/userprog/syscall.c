@@ -9,7 +9,7 @@
 #include <syscall-nr.h>
 
 // used to toggle print statements
-// #define debug_printf(fmt, ...) printf(fmt, ##__VA_ARGS__)
+//#define debug_printf(fmt, ...) printf(fmt, ##__VA_ARGS__)
 #define debug_printf(fmt, ...) // Define as empty if debugging is disabled
 //#define debug_extra_printf(fmt, ...) printf(fmt, ##__VA_ARGS__)
 #define debug_extra_printf(fmt, ...) // Uncomment to turn debugger off and comment above
@@ -243,13 +243,23 @@ void exit(int status) {
   debug_printf("(exit) [%s] Exiting program\n", thread_current()->name);
   debug_printf("  (exit) with status [%d]\n", status);
   
-  if (thread_current()->child_loaded != -1){
-   thread_current()->exit_status = status;
-  }else{
+  if(thread_current()->child_loaded == -1){
+    debug_printf("  (exit) child NOT loaded\n");
     thread_current()->exit_status = -1;
   }
+  debug_printf("  (exit) child loaded\n");
+  thread_current()->exit_status = status;
   
-  thread_current()->parent->child_done = 1; 
+  // Tell the parent thread we are done
+  
+  // Find our identifier from the parent
+  struct child *c_t = find_child(thread_current()->tid, thread_current()->parent);
+  if(c_t != NULL){
+    // Update our return status for the parent if the parent is still connected to us
+    c_t->child_ret = status;
+    thread_current()->parent->child_done = 1;
+  }
+
   if(thread_current()->parent->child_waiting == thread_current()->tid){
     // If the parent thread is waiting on us, release them
     debug_printf("(exit) Releasing parent\n");

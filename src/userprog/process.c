@@ -223,6 +223,9 @@ process_wait (tid_t child_tid)
   debug_printf("(process_wait) Checking if child list is empty\n");
   if(list_empty(&thread_current()->child_list)) {return -1;}
 
+  // Check if the child even loaded
+  if(thread_current()->child_loaded == -1) {return -1;}
+
   // Check if the child we are waiting on is apart of our wait child list
   debug_printf("(process_wait) Checking if child was added\n");
   struct child *c_t = find_child(child_tid, thread_current()); 
@@ -232,19 +235,23 @@ process_wait (tid_t child_tid)
   // Set what child we are waiting on
   thread_current()->child_waiting = child_tid;
 
+
   // Wait on the child if they arent finished yet
   if(!thread_current()->child_done){
     debug_printf("(process_wait) Waiting on child [%d]\n", child_tid);
     // Wait on child to finish its program so we dont kill it too early 
   sema_down(&thread_current()->sem_child_wait);
   } 
+  // Grab its return value to send back
+  int ret = c_t->child_ret;
+
   
   // Kill the child once it is done
   debug_printf("(process_wait) killing child\n");
   list_remove(&c_t->child_elem); 
   free(c_t);
 
-  return -1;
+  return ret;
 }
 
 /** Free the current process's resources. */
