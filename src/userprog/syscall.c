@@ -66,10 +66,12 @@ bool valid_str(char *str){
       // Checking if the last part + null terminator is in the correct page
       char *end_str = str + strlen(page_str) + 1;
       if (!is_user_vaddr(end_str) || pagedir_get_page(thread_current()->pagedir, end_str) == NULL) {
+        debug_extra_printf("invalid str end page or vaddr\n");
         return false;
   	  }
     }
     // Otherwise return true
+    debug_extra_printf("No issue found in str\n");
     return true;
 }
 
@@ -169,10 +171,14 @@ static void syscall_handler(struct intr_frame *f UNUSED) {
       if (!valid_addr((stack_p+1))  || !valid_addr((stack_p+2))  
           || !valid_addr((stack_p+3)))
           {exit(-1);}
-      
       int fd = *(stack_p+1);
       void * buf = *(stack_p+2);
       unsigned sz = *(stack_p+3);
+
+      if (!valid_str(buf)) {
+        exit(-1);
+      }
+
       f->eax = read(fd, buf, sz);
       break; 
 
@@ -186,7 +192,6 @@ static void syscall_handler(struct intr_frame *f UNUSED) {
       fd = *(stack_p+1);
       buf = *(stack_p+2);
       sz = *(stack_p+3);
-      //if(!valid_addr(buf+sz))
       f->eax = write(fd, buf, sz);
       break; 
 
