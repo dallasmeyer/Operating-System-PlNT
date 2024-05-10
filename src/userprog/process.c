@@ -66,7 +66,7 @@ process_execute (const char *file_name)
   sema_down(&thread_current()->sem_child_load);
   debug_printf("(process_execute) child load finished\n");
   // Check if the child thread loaded 
-  if(!thread_current()->child_loaded){
+  if(thread_current()->child_loaded == -1){
     debug_printf("(process_execute) child failed to load\n");
     // Look for the child thread just created
     struct child *c_t = find_child(tid, thread_current());
@@ -169,7 +169,6 @@ start_process (void *file_name_)
   success = load (file_name, &if_.eip, &if_.esp, user_args, arg_count);
   // NEW: set the child loaded flag for parent thread that started the user program
   debug_printf("(process_start) load success is [%d]\n", success);
-  thread_current()->parent->child_loaded = success;
 
   // Added begin print that checks if args operation
   if (strstr(user_prog, "args") != NULL) {
@@ -184,6 +183,7 @@ start_process (void *file_name_)
   palloc_free_page (file_name);
   if (!success){
     thread_current()->exit_status = -1;
+    thread_current()->parent->child_loaded = -1;
     debug_printf("(process_start) error loading source file\n");
     sema_up(&thread_current()->parent->sem_child_load); 
     thread_exit ();
