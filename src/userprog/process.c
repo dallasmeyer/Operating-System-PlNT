@@ -75,6 +75,7 @@ process_execute (const char *file_name)
       list_remove(&c_t->child_elem); 
       free(c_t);
     }
+    return TID_ERROR;
   }
   // If the thread loaded we move onto waiting on the child to finish after 
   // returning its TID
