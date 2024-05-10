@@ -9,7 +9,7 @@
 #include <syscall-nr.h>
 
 // used to toggle print statements
-//#define debug_printf(fmt, ...) printf(fmt, ##__VA_ARGS__)
+// #define debug_printf(fmt, ...) printf(fmt, ##__VA_ARGS__)
 #define debug_printf(fmt, ...) // Define as empty if debugging is disabled
 //#define debug_extra_printf(fmt, ...) printf(fmt, ##__VA_ARGS__)
 #define debug_extra_printf(fmt, ...) // Uncomment to turn debugger off and comment above
@@ -132,16 +132,12 @@ static void syscall_handler(struct intr_frame *f UNUSED) {
       debug_printf("(syscall) syscall_funct is [SYS_CREATE]\n");
       if(!valid_addr(stack_p+1) || !valid_addr(stack_p+2)) 
       {exit(-1);}
+      if(!valid_addr(*(stack_p+1))){exit(-1);}
       debug_printf("s1:%s,s2:%u\n", *(stack_p+1), *(stack_p+2));
       char *file = *(stack_p+1);
       unsigned size = *(stack_p+2);
       
-      // FIXME: gets stuck at inode_create or dir_add in filesys_create
-      bool result = create((const char * ) file,size);
-      if (!result) { 
-        exit(-1);
-      }
-      f->eax = result;
+      f->eax = create((const char * ) file,size);
       break; 
 
 	  // Case 6: Delete a file
@@ -154,7 +150,7 @@ static void syscall_handler(struct intr_frame *f UNUSED) {
 	  // Case 7: Open a file 
 	  case SYS_OPEN: 
       debug_printf("(syscall) syscall_funct is [SYS_OPEN]\n");
-      if(!valid_addr(stack_p+1)){exit(-1);}
+      if(!valid_addr(stack_p+1) | !valid_addr(*(stack_p+1)) ){exit(-1);}
       file = *(stack_p+1);
       f->eax = open(file);
       break; 
@@ -163,6 +159,7 @@ static void syscall_handler(struct intr_frame *f UNUSED) {
 	  case SYS_FILESIZE:
        //if(!valid_add()) {exit(-1);}
       debug_printf("(syscall) syscall_funct is [SYS_FILESIZE]\n");
+      filesize(*(stack_p + 1));
       break; 
 
 	  // Case 9: Read from a file 
@@ -171,6 +168,8 @@ static void syscall_handler(struct intr_frame *f UNUSED) {
       debug_printf("(syscall) syscall_funct is [SYS_READ]\n");
       if (!valid_addr((stack_p+1))  || !valid_addr((stack_p+2))  
           || !valid_addr((stack_p+3)))
+          {exit(-1);}
+      if (!valid_addr(*(stack_p+1))  || !valid_addr(*(stack_p+2)))
           {exit(-1);}
       int fd = *(stack_p+1);
       void * buf = *(stack_p+2);
@@ -189,6 +188,8 @@ static void syscall_handler(struct intr_frame *f UNUSED) {
       debug_printf("(syscall) syscall_funct is [SYS_WRITE]\n");
       if (!valid_addr((stack_p+1)) || !valid_addr((stack_p+2))  
           || !valid_addr((stack_p+3)) || !valid_addr(*(stack_p+2))) {exit(-1);}
+      // if (!valid_addr(*(stack_p+5)))
+      //     {exit(-1);}
       debug_printf("s1:%u,s2:%u,s3:%u\n", *(stack_p+1), *(stack_p+2), *(stack_p+3));
       fd = *(stack_p+1);
       buf = *(stack_p+2);
@@ -208,12 +209,17 @@ static void syscall_handler(struct intr_frame *f UNUSED) {
 	  // Case 12: Report a current position in a file
 	  case SYS_TELL:
        //if(!valid_add()) {exit(-1);}
+      tell(*(stack_p + 1));
       debug_printf("(syscall) syscall_funct is [SYS_TELL]\n"); 
       break; 
 
 	  // Case 13: Close a file
 	  case SYS_CLOSE: 
-       //if(!valid_add()) {exit(-1);}
+      //if(!valid_add()) {exit(-1);}
+      if(!valid_addr(stack_p+1)){exit(-1);}
+      file = *(stack_p+1);
+      close(file);
+
       debug_printf("(syscall) syscall_funct is [SYS_CLOSE]\n");
       break; 
 
@@ -353,11 +359,6 @@ int open(const char *file) {
   return file_elem->fd;
 }
 
-int filesize(int fd) {
-  // TODO:
-  return 0;
-}
-
 int read(int fd, void *buffer, unsigned size) {
   // Read size bytes from fd into buffer,
   // check if keyboard input, as fd = 0 for user writes.
@@ -425,5 +426,46 @@ void seek (int fd, unsigned position) {
   file_seek(file_elem->file_p, position);
   lock_release(&file_lock);
 }
-// unsigned tell (int fd);
-// void close (int fd);
+
+int filesize(int fd) {
+  struct file_inst * file_elem = locate_file(fd);
+  if (file_elem == NULL) exit(-1);
+
+  // using length function
+  lock_acquire(&file_lock);
+  int result = file_length(file_elem->file_p);
+  lock_release(&file_lock);
+  return result;
+}
+
+unsigned tell (int fd) {
+  struct file_inst * file_elem = locate_file(fd);
+  if (file_elem == NULL) exit(-1);
+
+  // using tell function
+  lock_acquire(&file_lock);
+  unsigned result = file_tell(file_elem->file_p);
+  lock_release(&file_lock);
+  return result;
+}
+
+void close (int fd) {
+  // check if file descriptor is console IO
+  if (fd == STDIN_FILENO || fd == STDOUT_FILENO) return;
+
+  // locate file
+  struct file_inst * fd_e = locate_file(fd);
+  if (fd_e == NULL) exit(-1);
+
+  // read file
+  lock_acquire(&file_lock);
+  int result = file_close(fd_e->file_p);
+  lock_release(&file_lock);
+
+  // Now remove file descriptor elemenet
+  list_remove(&fd_e->file_list_e);
+  free(fd_e);
+  debug_printf("close(): finished!");
+
+}
+

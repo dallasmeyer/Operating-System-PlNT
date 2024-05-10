@@ -156,6 +156,15 @@ page_fault (struct intr_frame *f)
           not_present ? "not present" : "rights violation",
           write ? "writing" : "reading",
           user ? "user" : "kernel");
-  kill (f);
+  
+  thread_current()->exit_status = -1;
+  thread_current()->parent->child_done = 1; 
+  if(thread_current()->parent->child_waiting == thread_current()->tid){
+    // If the parent thread is waiting on us, release them
+    sema_up(&thread_current()->parent->sem_child_wait); 
+  }
+  
+  thread_exit();
+  // kill (f);
 }
 
