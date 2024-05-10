@@ -81,12 +81,8 @@ static void syscall_handler(struct intr_frame *f UNUSED) {
   debug_printf("(syscall_handler) Stack pointer : 0x%x and funct [%d]\n", 
       (uintptr_t)f->esp, *stack_p);
 
-  int stack_size = (uint32_t)PHYS_BASE - (uint32_t)f->esp;
-  debug_printf("  (syscall_handler) call stack size [%d]\n", 
-    stack_size);
-
   // Check if stack pointer is within user address space and is mapped to a valid page
-  if (stack_size < 1 || !valid_addr(stack_p)) {
+  if (!valid_addr(stack_p)) {
     debug_printf("syscall_handler(): Invalid call stack ptr\n");
     exit(-1);
     return;
