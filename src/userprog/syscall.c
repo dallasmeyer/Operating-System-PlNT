@@ -9,7 +9,7 @@
 #include <syscall-nr.h>
 
 // used to toggle print statements
-// #define debug_printf(fmt, ...) printf(fmt, ##__VA_ARGS__)
+//#define debug_printf(fmt, ...) printf(fmt, ##__VA_ARGS__)
 #define debug_printf(fmt, ...) // Define as empty if debugging is disabled
 //#define debug_extra_printf(fmt, ...) printf(fmt, ##__VA_ARGS__)
 #define debug_extra_printf(fmt, ...) // Uncomment to turn debugger off and comment above
@@ -81,12 +81,8 @@ static void syscall_handler(struct intr_frame *f UNUSED) {
   debug_printf("(syscall_handler) Stack pointer : 0x%x and funct [%d]\n", 
       (uintptr_t)f->esp, *stack_p);
 
-  int stack_size = (uint32_t)PHYS_BASE - (uint32_t)f->esp;
-  debug_printf("  (syscall_handler) call stack size [%d]\n", 
-    stack_size);
-
   // Check if stack pointer is within user address space and is mapped to a valid page
-  if (stack_size < 1 || !valid_addr(stack_p)) {
+  if (!valid_addr(stack_p)) {
     debug_printf("syscall_handler(): Invalid call stack ptr\n");
     exit(-1);
     return;
@@ -103,19 +99,19 @@ static void syscall_handler(struct intr_frame *f UNUSED) {
       debug_printf("(syscall) syscall_funct is [SYS_HALT]\n");
       halt();
       break;
-
+      
 	  // Case 2: terminate this process
 	  case SYS_EXIT: 
       debug_printf("(syscall) syscall_funct is [SYS_EXIT]\n");
-      if(!valid_addr(stack_p+1)) {exit(-1);}
+      //if(!valid_addr(stack_p+1)) {exit(-1);}
       exit(*(stack_p+1));
       debug_printf("(syscall) syscall_funct is [SYS_EXIT] complete\n");
       break; 
 	  
 	  // Case 3: Start another process
 	  case SYS_EXEC: 
-      if(!valid_addr((stack_p + 1)) || !valid_str(*(stack_p + 1))) {exit(-1);}
       debug_printf("(syscall) syscall_funct is [SYS_EXEC]\n");
+      if(!valid_addr((stack_p + 1)) || !valid_str(*(stack_p + 1))) {exit(-1);}
       f->eax = exec(*(stack_p + 1));
       break; 
 
@@ -167,10 +163,8 @@ static void syscall_handler(struct intr_frame *f UNUSED) {
        //if(!valid_add()) {exit(-1);}
       debug_printf("(syscall) syscall_funct is [SYS_READ]\n");
       if (!valid_addr((stack_p+1))  || !valid_addr((stack_p+2))  
-          || !valid_addr((stack_p+3)))
-          {exit(-1);}
-      if (!valid_addr(*(stack_p+1))  || !valid_addr(*(stack_p+2)))
-          {exit(-1);}
+          || !valid_addr((stack_p+3))){exit(-1);}
+      debug_printf("s1:%u,s2:%u,s3:%u\n", *(stack_p+1), *(stack_p+2), *(stack_p+3));
       int fd = *(stack_p+1);
       void * buf = *(stack_p+2);
       unsigned sz = *(stack_p+3);
@@ -191,6 +185,7 @@ static void syscall_handler(struct intr_frame *f UNUSED) {
       // if (!valid_addr(*(stack_p+5)))
       //     {exit(-1);}
       debug_printf("s1:%u,s2:%u,s3:%u\n", *(stack_p+1), *(stack_p+2), *(stack_p+3));
+      debug_printf("s1:%d,s2:%d,s3:%d\n", (size_t)*(stack_p+1), (size_t)*(stack_p+2), (size_t)*(stack_p+3));
       fd = *(stack_p+1);
       buf = *(stack_p+2);
       sz = *(stack_p+3);
@@ -243,13 +238,23 @@ void exit(int status) {
   debug_printf("(exit) [%s] Exiting program\n", thread_current()->name);
   debug_printf("  (exit) with status [%d]\n", status);
   
-  if (thread_current()->child_loaded != -1){
-   thread_current()->exit_status = status;
-  }else{
+  if(thread_current()->child_loaded == -1){
+    debug_printf("  (exit) child NOT loaded\n");
     thread_current()->exit_status = -1;
   }
+  debug_printf("  (exit) child loaded\n");
+  thread_current()->exit_status = status;
   
-  thread_current()->parent->child_done = 1; 
+  // Tell the parent thread we are done
+  
+  // Find our identifier from the parent
+  struct child *c_t = find_child(thread_current()->tid, thread_current()->parent);
+  if(c_t != NULL){
+    // Update our return status for the parent if the parent is still connected to us
+    c_t->child_ret = status;
+    thread_current()->parent->child_done = 1;
+  }
+
   if(thread_current()->parent->child_waiting == thread_current()->tid){
     // If the parent thread is waiting on us, release them
     debug_printf("(exit) Releasing parent\n");
