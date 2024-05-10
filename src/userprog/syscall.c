@@ -103,15 +103,15 @@ static void syscall_handler(struct intr_frame *f UNUSED) {
 	  // Case 2: terminate this process
 	  case SYS_EXIT: 
       debug_printf("(syscall) syscall_funct is [SYS_EXIT]\n");
-      if(!valid_addr(stack_p+1)) {exit(-1);}
+      //if(!valid_addr(stack_p+1)) {exit(-1);}
       exit(*(stack_p+1));
       debug_printf("(syscall) syscall_funct is [SYS_EXIT] complete\n");
       break; 
 	  
 	  // Case 3: Start another process
 	  case SYS_EXEC: 
-      if(!valid_addr((stack_p + 1)) || !valid_str(*(stack_p + 1))) {exit(-1);}
       debug_printf("(syscall) syscall_funct is [SYS_EXEC]\n");
+      if(!valid_addr((stack_p + 1)) || !valid_str(*(stack_p + 1))) {exit(-1);}
       f->eax = exec(*(stack_p + 1));
       break; 
 
@@ -163,10 +163,8 @@ static void syscall_handler(struct intr_frame *f UNUSED) {
        //if(!valid_add()) {exit(-1);}
       debug_printf("(syscall) syscall_funct is [SYS_READ]\n");
       if (!valid_addr((stack_p+1))  || !valid_addr((stack_p+2))  
-          || !valid_addr((stack_p+3)))
-          {exit(-1);}
-      if (!valid_addr(*(stack_p+1))  || !valid_addr(*(stack_p+2)))
-          {exit(-1);}
+          || !valid_addr((stack_p+3))){exit(-1);}
+      debug_printf("s1:%u,s2:%u,s3:%u\n", *(stack_p+1), *(stack_p+2), *(stack_p+3));
       int fd = *(stack_p+1);
       void * buf = *(stack_p+2);
       unsigned sz = *(stack_p+3);
@@ -187,6 +185,7 @@ static void syscall_handler(struct intr_frame *f UNUSED) {
       // if (!valid_addr(*(stack_p+5)))
       //     {exit(-1);}
       debug_printf("s1:%u,s2:%u,s3:%u\n", *(stack_p+1), *(stack_p+2), *(stack_p+3));
+      debug_printf("s1:%d,s2:%d,s3:%d\n", (size_t)*(stack_p+1), (size_t)*(stack_p+2), (size_t)*(stack_p+3));
       fd = *(stack_p+1);
       buf = *(stack_p+2);
       sz = *(stack_p+3);
