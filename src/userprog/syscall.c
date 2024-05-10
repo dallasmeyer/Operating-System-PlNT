@@ -103,7 +103,7 @@ static void syscall_handler(struct intr_frame *f UNUSED) {
       debug_printf("(syscall) syscall_funct is [SYS_HALT]\n");
       halt();
       break;
-
+      
 	  // Case 2: terminate this process
 	  case SYS_EXIT: 
       debug_printf("(syscall) syscall_funct is [SYS_EXIT]\n");
@@ -141,6 +141,7 @@ static void syscall_handler(struct intr_frame *f UNUSED) {
       if (!result) { 
         exit(-1);
       }
+      f->eax = result;
       break; 
 
 	  // Case 6: Delete a file
