@@ -155,7 +155,7 @@ static void syscall_handler(struct intr_frame *f UNUSED) {
 	  case SYS_FILESIZE:
        //if(!valid_add()) {exit(-1);}
       debug_printf("(syscall) syscall_funct is [SYS_FILESIZE]\n");
-      filesize(*(stack_p + 1));
+      f->eax = filesize(*(stack_p + 1));
       break; 
 
 	  // Case 9: Read from a file 
