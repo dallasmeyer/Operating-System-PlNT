@@ -33,7 +33,7 @@ bool valid_addr(void *vaddr) {
     }
 
     // Check if the virtual address is in the user address space
-    if (!is_user_vaddr(vaddr)) {
+    if (!is_user_vaddr(vaddr) || (vaddr >= 0xbffffffc)) {
         debug_printf("invalid vaddr\n");
         return false;
     }
@@ -244,6 +244,10 @@ void exit(int status) {
   }
   debug_printf("  (exit) child loaded\n");
   thread_current()->exit_status = status;
+
+  // if (status < -1) {
+  //   thread_current()->exit_status = -1;
+  // }
   
   // Tell the parent thread we are done
   
