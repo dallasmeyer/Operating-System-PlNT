@@ -152,7 +152,7 @@ page_fault (struct intr_frame *f)
   // Find our child struct that the parent thread holds
   struct child *c_t = find_child(thread_current()->tid, thread_current()->parent);
   if(c_t != NULL) {
-     c_t->child_ret = -1; 
+     c_t->child_ret = 0; 
      c_t->child_done = 1;
   } 
   // Set the current caught threads status
