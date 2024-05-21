@@ -9,8 +9,8 @@
 #include <syscall-nr.h>
 
 // used to toggle print statements
-//#define debug_printf(fmt, ...) printf(fmt, ##__VA_ARGS__)
-#define debug_printf(fmt, ...) // Define as empty if debugging is disabled
+#define debug_printf(fmt, ...) printf(fmt, ##__VA_ARGS__)
+//#define debug_printf(fmt, ...) // Define as empty if debugging is disabled
 //#define debug_extra_printf(fmt, ...) printf(fmt, ##__VA_ARGS__)
 #define debug_extra_printf(fmt, ...) // Uncomment to turn debugger off and comment above
 
@@ -255,8 +255,12 @@ void exit(int status) {
   struct child *c_t = find_child(thread_current()->tid, thread_current()->parent);
   if(c_t != NULL){
     // Update our return status for the parent if the parent is still connected to us
+    debug_printf("(exit) parent found for [%s]\n", thread_current()->name);
     c_t->child_ret = status;
     thread_current()->parent->child_done = 1;
+  }else{
+    // No parent was found
+    debug_printf("(exit) parent NOT found for [%s]\n", thread_current()->name);
   }
 
   if(thread_current()->parent->child_waiting == thread_current()->tid){

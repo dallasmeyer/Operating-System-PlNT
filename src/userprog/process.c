@@ -19,8 +19,8 @@
 #include "threads/vaddr.h"
 
 // Higher level debugger
-//#define debug_printf(fmt, ...) printf(fmt, ##__VA_ARGS__)
-#define debug_printf(fmt, ...) // Uncomment to turn debugger off and comment above
+#define debug_printf(fmt, ...) printf(fmt, ##__VA_ARGS__)
+//#define debug_printf(fmt, ...) // Uncomment to turn debugger off and comment above
 //debug_printf("()\n");
 // Deeper level debugger
 //#define debug_extra_printf(fmt, ...) printf(fmt, ##__VA_ARGS__)
@@ -216,9 +216,7 @@ start_process (void *file_name_)
    does nothing. */
 int
 process_wait (tid_t child_tid) 
-{
-  
-  
+{  
   // Check if the child list is empty first to make sure this thread 
   // isnt waiting on nothing
   debug_printf("(process_wait) Checking if child list is empty\n");
@@ -235,20 +233,20 @@ process_wait (tid_t child_tid)
 
   // Set what child we are waiting on
   thread_current()->child_waiting = child_tid;
-
+  debug_printf("   (process_wait) child to wait [%d] | status [%d]\n", child_tid, thread_current()->child_done); 
 
   // Wait on the child if they arent finished yet
   if(!thread_current()->child_done){
-    debug_printf("(process_wait) Waiting on child [%d]\n", child_tid);
+    debug_printf("   (process_wait) Waiting on child [%d]\n", child_tid);
     // Wait on child to finish its program so we dont kill it too early 
-  sema_down(&thread_current()->sem_child_wait);
-  } 
+    sema_down(&thread_current()->sem_child_wait);
+  }
   // Grab its return value to send back
   int ret = c_t->child_ret;
-
+  debug_printf("   (process_wait) child ret is [%d]\n", ret);
   
   // Kill the child once it is done
-  debug_printf("(process_wait) killing child\n");
+  debug_printf("   (process_wait) killing child\n");
   list_remove(&c_t->child_elem); 
   free(c_t);
 
