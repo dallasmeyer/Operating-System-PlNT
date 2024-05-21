@@ -149,8 +149,14 @@ page_fault (struct intr_frame *f)
   user = (f->error_code & PF_U) != 0;
 
   
+  // Find our child struct that the parent thread holds
+  struct child *c_t = find_child(thread_current()->tid, thread_current()->parent);
+  if(c_t != NULL) {
+     c_t->child_ret = 0; 
+     c_t->child_done = 1;
+  } 
+  // Set the current caught threads status
   thread_current()->exit_status = -1;
-  thread_current()->parent->child_done = 1; 
   if(thread_current()->parent->child_waiting == thread_current()->tid){
     // If the parent thread is waiting on us, release them
     sema_up(&thread_current()->parent->sem_child_wait); 

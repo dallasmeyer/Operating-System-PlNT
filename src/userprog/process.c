@@ -19,8 +19,8 @@
 #include "threads/vaddr.h"
 
 // Higher level debugger
-#define debug_printf(fmt, ...) printf(fmt, ##__VA_ARGS__)
-//#define debug_printf(fmt, ...) // Uncomment to turn debugger off and comment above
+//#define debug_printf(fmt, ...) printf(fmt, ##__VA_ARGS__)
+#define debug_printf(fmt, ...) // Uncomment to turn debugger off and comment above
 //debug_printf("()\n");
 // Deeper level debugger
 //#define debug_extra_printf(fmt, ...) printf(fmt, ##__VA_ARGS__)
@@ -81,7 +81,6 @@ process_execute (const char *file_name)
   // returning its TID
   debug_printf("(process_execute) child load finished [%s]\n", thread_current()->name);
   // Return tid when done 
-
   return tid;
 }
 
@@ -191,7 +190,7 @@ start_process (void *file_name_)
   }
 
   // unblock parent thread
-  debug_printf("(process_start) load successful\n");
+  debug_printf("(process_start) load successful [%s] [%d]\n", thread_current()->name, thread_current()->tid);
   sema_up(&thread_current()->parent->sem_child_load); 
 
 
@@ -233,10 +232,10 @@ process_wait (tid_t child_tid)
 
   // Set what child we are waiting on
   thread_current()->child_waiting = child_tid;
-  debug_printf("   (process_wait) child to wait [%d] | status [%d]\n", child_tid, thread_current()->child_done); 
+  debug_printf("   (process_wait) child to wait [%d] | status [%d]\n", child_tid, c_t->child_done); 
 
   // Wait on the child if they arent finished yet
-  if(!thread_current()->child_done){
+  if(!c_t->child_done){
     debug_printf("   (process_wait) Waiting on child [%d]\n", child_tid);
     // Wait on child to finish its program so we dont kill it too early 
     sema_down(&thread_current()->sem_child_wait);
@@ -257,10 +256,9 @@ process_wait (tid_t child_tid)
 void
 process_exit (void)
 {
-  debug_printf("(process_exit) Starting\n");
   struct thread *cur = thread_current ();
   uint32_t *pd;
-
+  debug_printf("(process_exit) Starting [%s] [%d]\n", cur->name, cur->tid);
   // Print the exit message 
   char * saveptr;
   printf("%s: exit(%d)\n",strtok_r(cur->name, " ", saveptr),cur->exit_status);
