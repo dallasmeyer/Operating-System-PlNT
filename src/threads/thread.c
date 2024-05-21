@@ -207,9 +207,9 @@ thread_create (const char *name, int priority,
   // NEW: Used for communicating between the parent and children threads
   t->parent = thread_current();                     // Newly created threads pointer to parent 
   t->parent->child_loaded = 0;
-  t->parent->child_done = 0;
   struct child *c_t = malloc(sizeof(struct child)); // Creating new child for parent thread to use
-  c_t->tid = tid; 
+  c_t->tid = tid; 				    // Current thread setting the child tid for the parent
+  c_t->child_done = 0;				    // Child was just created so it is not done with its application 
   list_push_back(&thread_current()->child_list, &c_t->child_elem);
   t->fd_ct = 1;
 

@@ -257,7 +257,8 @@ void exit(int status) {
     // Update our return status for the parent if the parent is still connected to us
     debug_printf("(exit) parent found for [%s]\n", thread_current()->name);
     c_t->child_ret = status;
-    thread_current()->parent->child_done = 1;
+    c_t->child_done = 1;
+
   }else{
     // No parent was found
     debug_printf("(exit) parent NOT found for [%s]\n", thread_current()->name);

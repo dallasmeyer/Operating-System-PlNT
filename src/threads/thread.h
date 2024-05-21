@@ -114,7 +114,6 @@ struct thread
     struct semaphore sem_child_wait;   // Sem forcing the parent thread to wait on child 
     struct list child_list;            // List of children threads 
     int child_loaded;                  // Flag saying if the child loaded 
-    int child_done;                    // Flag saying if the child finished its task
     tid_t child_waiting;               // Child the thread is waiting on 
 
     /* Owned by thread.c. */
@@ -124,6 +123,7 @@ struct thread
 // NEW: struct type to allow for threads to have children process threads
 struct child{
    tid_t tid;                      // Child threads identifier
+   int child_done;		   // Internal flag for a child to notify a parent when it is done
    struct list_elem child_elem;    // list element of child
    int child_ret;                  // childs return value 
 }; 
