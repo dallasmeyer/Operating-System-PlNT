@@ -9,8 +9,8 @@
 #include <syscall-nr.h>
 
 // used to toggle print statements
-#define debug_printf(fmt, ...) printf(fmt, ##__VA_ARGS__)
-//#define debug_printf(fmt, ...) // Define as empty if debugging is disabled
+//#define debug_printf(fmt, ...) printf(fmt, ##__VA_ARGS__)
+#define debug_printf(fmt, ...) // Define as empty if debugging is disabled
 //#define debug_extra_printf(fmt, ...) printf(fmt, ##__VA_ARGS__)
 #define debug_extra_printf(fmt, ...) // Uncomment to turn debugger off and comment above
 
