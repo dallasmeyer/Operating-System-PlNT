@@ -14,7 +14,6 @@ Functionality of extended file system:
 3	grow-seq-lg
 3	grow-sparse
 3	grow-two-files
-1	grow-tell
 1	grow-file-size
 
 - Test directory growth.
