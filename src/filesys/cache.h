@@ -20,4 +20,16 @@ struct list cache_list;
 /* Function to initialize the buffer cache */
 void buffer_cache_init(void);
 
+/* Helper function to find a buffer block in the cache */
+struct buffer_block *buffer_cache_find(block_sector_t sector);
+/* Helper function to evict the least recently used block from the cache */
+struct buffer_block *buffer_cache_evict(void);
+/* Read a block from the buffer cache or disk */
+void buffer_cache_read(block_sector_t sector, void *buffer);
+/* Write a block to the buffer cache */
+void buffer_cache_write(block_sector_t sector, const void *buffer);
+/* Flush all dirty blocks to disk */
+void buffer_cache_flush(void);
+
+
 #endif /* filesys/cache.h */

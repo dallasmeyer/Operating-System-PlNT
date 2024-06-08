@@ -6,6 +6,7 @@
 #include "filesys/filesys.h"
 #include "filesys/free-map.h"
 #include "threads/malloc.h"
+#include "filesys/cache.h"
 
 /** Identifies an inode. */
 #define INODE_MAGIC 0x494e4f44
@@ -37,6 +38,9 @@ struct inode
     bool removed;                       /**< True if deleted, false otherwise. */
     int deny_write_cnt;                 /**< 0: writes ok, >0: deny writes. */
     struct inode_disk data;             /**< Inode content. */
+
+    // NEW 
+    off_t length;
   };
 
 /** Returns the block device sector that contains byte offset POS
@@ -138,6 +142,9 @@ inode_open (block_sector_t sector)
   inode->deny_write_cnt = 0;
   inode->removed = false;
   block_read (fs_device, inode->sector, &inode->data);
+  
+  // NEW initialize: Copy the inode_disk data into the inode
+  inode->length = inode->data.length;
   return inode;
 }
 
@@ -202,8 +209,10 @@ inode_read_at (struct inode *inode, void *buffer_, off_t size, off_t offset)
 {
   uint8_t *buffer = buffer_;
   off_t bytes_read = 0;
-  uint8_t *bounce = NULL;
 
+  // Quick check that if there is nothing to read we should return
+  off_t len = inode->length; 
+  if(offset >= len) return 0;
   while (size > 0) 
     {
       /* Disk sector to read, starting byte offset within sector. */
@@ -223,32 +232,28 @@ inode_read_at (struct inode *inode, void *buffer_, off_t size, off_t offset)
       if (sector_ofs == 0 && chunk_size == BLOCK_SECTOR_SIZE)
         {
           /* Read full sector directly into caller's buffer. */
-          block_read (fs_device, sector_idx, buffer + bytes_read);
+          printf("(read_at) reading sector into callers buffer");
+          buffer_cache_read(sector_idx, buffer + bytes_read);
         }
       else 
         {
-          /* Read sector into bounce buffer, then partially copy
+          /* Read sector into cache buffer, then partially copy
              into caller's buffer. */
-          if (bounce == NULL) 
-            {
-              bounce = malloc (BLOCK_SECTOR_SIZE);
-              if (bounce == NULL)
-                break;
-            }
-          block_read (fs_device, sector_idx, bounce);
-          memcpy (buffer + bytes_read, bounce + sector_ofs, chunk_size);
+          printf("(read_at) reading sector cache buffer");
+          uint8_t cache_buffer[BLOCK_SECTOR_SIZE];
+          buffer_cache_read(sector_idx, cache_buffer);
+          memcpy (buffer + bytes_read, cache_buffer + sector_ofs, chunk_size);
         }
       
       /* Advance. */
       size -= chunk_size;
       offset += chunk_size;
       bytes_read += chunk_size;
+      printf(" | done \n");
     }
-  free (bounce);
-
+  printf("(read_at) finshed\n");
   return bytes_read;
 }
-
 /** Writes SIZE bytes from BUFFER into INODE, starting at OFFSET.
    Returns the number of bytes actually written, which may be
    less than SIZE if end of file is reached or an error occurs.
