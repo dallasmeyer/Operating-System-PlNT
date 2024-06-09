@@ -13,6 +13,7 @@ struct buffer_block {
     block_sector_t sector;  /* on-disk location (sector number) of the block */
     void *vaddr;  /* virtual address of the associated buffer cache entry */
     struct list_elem elem;  /* List element for inclusion in cache_list */
+    uint8_t buf[BLOCK_SECTOR_SIZE];
 };
 
 /* Declare the global cache list */
@@ -30,7 +31,7 @@ struct buffer_block *buffer_cache_find(block_sector_t sector);
 /* Read a block from the buffer cache or disk */
 void buffer_cache_read(block_sector_t sector, void *target, int sector_ofs, int chunk_size);
 /* Write a block to the buffer cache */
-void buffer_cache_write(block_sector_t sector, const void *source, int sector_ofs, int chunk_size);
+void buffer_cache_write(block_sector_t sector, const void *source, int sector_ofs, int chunk_size, int sector_left);
 /* Close the buffer cache, flushing all dirty entries to disk. this is a write-back method */
 void buffer_cache_close(void);
 #endif /* filesys/cache.h */

@@ -269,7 +269,7 @@ inode_write_at(struct inode *inode, const void *buffer_, off_t size, off_t offse
       break;
 
     /* Write the required part of the sector directly into the cache entry. */
-    buffer_cache_write(sector_idx, buffer + bytes_written, sector_ofs, chunk_size);
+    buffer_cache_write(sector_idx, buffer + bytes_written, sector_ofs, chunk_size, sector_left);
 
     /* Advance to the next chunk. */
     size -= chunk_size;

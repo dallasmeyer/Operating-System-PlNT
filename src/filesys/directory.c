@@ -97,17 +97,21 @@ lookup (const struct dir *dir, const char *name,
   
   ASSERT (dir != NULL);
   ASSERT (name != NULL);
+  // FIXME: returning false, not sure if should return true
 
   for (ofs = 0; inode_read_at (dir->inode, &e, sizeof e, ofs) == sizeof e;
        ofs += sizeof e) 
+    printf("(lookup()): (%s) == (%s)?\n'", name, e.name);
     if (e.in_use && !strcmp (name, e.name)) 
       {
         if (ep != NULL)
           *ep = e;
         if (ofsp != NULL)
           *ofsp = ofs;
+        printf("(lookup): returned TRUE!\n");
         return true;
       }
+  printf("(lookup): returned FALSE!\n");
   return false;
 }
 
@@ -123,6 +127,8 @@ dir_lookup (const struct dir *dir, const char *name,
 
   ASSERT (dir != NULL);
   ASSERT (name != NULL);
+
+  // FIXME: might need to set up some conditions?
 
   if (lookup (dir, name, &e, NULL))
     *inode = inode_open (e.inode_sector);
