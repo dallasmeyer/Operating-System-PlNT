@@ -40,7 +40,7 @@ void
 filesys_done (void) 
 {
   /* Flush all dirty blocks to disk */
-  buffer_cache_flush();
+  void buffer_cache_close();
   free_map_close ();
 }
 /** Creates a file named NAME with the given INITIAL_SIZE.

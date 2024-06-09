@@ -143,8 +143,6 @@ inode_open (block_sector_t sector)
   inode->removed = false;
   block_read (fs_device, inode->sector, &inode->data);
   
-  // NEW initialize: Copy the inode_disk data into the inode
-  inode->length = inode->data.length;
   return inode;
 }
 
@@ -205,55 +203,41 @@ inode_remove (struct inode *inode)
    Returns the number of bytes actually read, which may be less
    than SIZE if an error occurs or end of file is reached. */
 off_t
-inode_read_at (struct inode *inode, void *buffer_, off_t size, off_t offset) 
+inode_read_at(struct inode *inode, void *buffer_, off_t size, off_t offset)
 {
   uint8_t *buffer = buffer_;
   off_t bytes_read = 0;
 
-  // Quick check that if there is nothing to read we should return
-  off_t len = inode->length; 
-  if(offset >= len) return 0;
-  while (size > 0) 
-    {
-      /* Disk sector to read, starting byte offset within sector. */
-      block_sector_t sector_idx = byte_to_sector (inode, offset);
-      int sector_ofs = offset % BLOCK_SECTOR_SIZE;
+  while (size > 0)
+  {
+    /* Disk sector to read, starting byte offset within sector. */
+    block_sector_t sector_idx = byte_to_sector(inode, offset);
+    int sector_ofs = offset % BLOCK_SECTOR_SIZE;
 
-      /* Bytes left in inode, bytes left in sector, lesser of the two. */
-      off_t inode_left = inode_length (inode) - offset;
-      int sector_left = BLOCK_SECTOR_SIZE - sector_ofs;
-      int min_left = inode_left < sector_left ? inode_left : sector_left;
+    /* Bytes left in inode, bytes left in sector, lesser of the two. */
+    off_t inode_left = inode_length(inode) - offset;
+    int sector_left = BLOCK_SECTOR_SIZE - sector_ofs;
+    int min_left = inode_left < sector_left ? inode_left : sector_left;
 
-      /* Number of bytes to actually copy out of this sector. */
-      int chunk_size = size < min_left ? size : min_left;
-      if (chunk_size <= 0)
-        break;
+    /* Number of bytes to actually copy out of this sector. */
+    int chunk_size = size < min_left ? size : min_left;
+    if (chunk_size <= 0)
+      break;
 
-      if (sector_ofs == 0 && chunk_size == BLOCK_SECTOR_SIZE)
-        {
-          /* Read full sector directly into caller's buffer. */
-          printf("(read_at) reading sector into callers buffer");
-          buffer_cache_read(sector_idx, buffer + bytes_read);
-        }
-      else 
-        {
-          /* Read sector into cache buffer, then partially copy
-             into caller's buffer. */
-          printf("(read_at) reading sector cache buffer");
-          uint8_t cache_buffer[BLOCK_SECTOR_SIZE];
-          buffer_cache_read(sector_idx, cache_buffer);
-          memcpy (buffer + bytes_read, cache_buffer + sector_ofs, chunk_size);
-        }
-      
-      /* Advance. */
-      size -= chunk_size;
-      offset += chunk_size;
-      bytes_read += chunk_size;
-      printf(" | done \n");
-    }
-  printf("(read_at) finshed\n");
+    /* Read the required part of the sector directly into caller's buffer. */
+    //printf("(read_at) reading sector into callers buffer");
+    buffer_cache_read(sector_idx, buffer + bytes_read, sector_ofs, chunk_size);
+
+    /* Advance to the next chunk. */
+    size -= chunk_size;
+    offset += chunk_size;
+    bytes_read += chunk_size;
+     //printf(" | done \n");
+  }
+  //printf("(read_at) finshed\n");
   return bytes_read;
 }
+
 /** Writes SIZE bytes from BUFFER into INODE, starting at OFFSET.
    Returns the number of bytes actually written, which may be
    less than SIZE if end of file is reached or an error occurs.
