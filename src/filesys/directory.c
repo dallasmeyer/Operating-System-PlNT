@@ -98,10 +98,10 @@ lookup (const struct dir *dir, const char *name,
   ASSERT (dir != NULL);
   ASSERT (name != NULL);
 
-  printf("(lookup): looking for [%s]...\n", name);
+  //printf("(lookup): looking for [%s]...\n", name);
   for (ofs = 0; inode_read_at(dir->inode, &e, sizeof e, ofs) == sizeof e;
        ofs += sizeof e){
-    printf("(lookup()): (%s) == (%s)? | '", name, e.name);
+    //printf("(lookup()): (%s) == (%s)? | '", name, e.name);
     if (e.in_use && !strcmp(name, e.name)) 
     {
       
@@ -111,11 +111,11 @@ lookup (const struct dir *dir, const char *name,
       if (ofsp != NULL) {
         *ofsp = ofs;
       }
-      printf("(lookup): returned TRUE!\n");
+      //printf("(lookup): returned TRUE!\n");
       return true;
     }
   }
-  printf("(lookup): returned FALSE! for [%s]\n", name);
+  //printf("(lookup): returned FALSE! for [%s]\n", name);
   return false;
 }
 

@@ -91,7 +91,7 @@ static struct buffer_block* buffer_cache_evict(void) {
 void buffer_cache_close(void) {
     lock_acquire(&buffer_cache_lock);
     // For loop writing all used sectors back to the disk
-    printf("(buffer_cache_close) starting flusing to disk\n");
+    //printf("(buffer_cache_close) starting flusing to disk\n");
     struct list_elem *e;
     for (e = list_begin(&cache_list); e != list_end(&cache_list); e = list_next(e)) {
         struct buffer_block *entry = list_entry(e, struct buffer_block, elem);
@@ -99,7 +99,7 @@ void buffer_cache_close(void) {
             buffer_cache_flush(entry);
         }
     }
-    printf("(buffer_cache_close) finished flusing to disk\n");
+    //printf("(buffer_cache_close) finished flusing to disk\n");
     lock_release(&buffer_cache_lock);
 }
 //-------------------------------------------------//
@@ -109,12 +109,12 @@ void buffer_cache_close(void) {
 /* Read a block from the buffer cache or disk into a specified memory location. */
 void buffer_cache_read(block_sector_t sector, void *target, int sector_ofs, int chunk_size) {
     lock_acquire(&buffer_cache_lock);
-    printf("(buffer_cache_read) starting\n");
+    //printf("(buffer_cache_read) starting\n");
     // Check if the block we want is in the buffer cache
     struct buffer_block *entry = buffer_cache_find(sector);
     if (entry == NULL) {
         // Cache miss: the block was not found so we need to evict based on LRU
-        printf("   (buffer_cache_read) cache miss\n");
+        //printf("   (buffer_cache_read) cache miss\n");
         entry = buffer_cache_evict();
         ASSERT(entry != NULL);
         // Initialize the buffer cache block
@@ -122,7 +122,7 @@ void buffer_cache_read(block_sector_t sector, void *target, int sector_ofs, int 
         entry->sector = sector;
         entry->dirty = 0;
     } else {
-        printf("  (buffer_cache_read) CACHE HIT\n");
+        //printf("  (buffer_cache_read) CACHE HIT\n");
     }
     // Change the access and used flags of the buffer cache block
     entry->used = 1;
@@ -130,29 +130,29 @@ void buffer_cache_read(block_sector_t sector, void *target, int sector_ofs, int 
 
     // Perform the read operation
     memcpy(target, entry->buf + sector_ofs, chunk_size);
-    printf("(buffer_cache_read) finished\n");
+    //printf("(buffer_cache_read) finished\n");
     lock_release(&buffer_cache_lock);
 }
 
 /* Write a block to the buffer cache */
 void buffer_cache_write(block_sector_t sector, const void *source, int sector_ofs, int chunk_size) {
     lock_acquire(&buffer_cache_lock);  // Ensures exclusive access to the buffer cache.
-    printf("(buffer_cache_write) attempting to write to sector: %d, offset: %d, size: %d\n", sector, sector_ofs, chunk_size);
+    //printf("(buffer_cache_write) attempting to write to sector: %d, offset: %d, size: %d\n", sector, sector_ofs, chunk_size);
     struct buffer_block *entry = buffer_cache_find(sector);
     if (entry == NULL) {
         // Cache miss: need eviction
-        printf("    (buffer_cache_write) cache miss\n");
+        //printf("    (buffer_cache_write) cache miss\n");
         entry = buffer_cache_evict();  // Evict a cache block if necessary.
         ASSERT(entry != NULL);
 
         // Read the sector data into the cache block only if necessary.
         if (!entry->used || entry->sector != sector) {
-            block_read(fs_device, sector, entry->vaddr);  // Load the sector data into the cache.
+            block_read(fs_device, sector, entry->buf);  // Load the sector data into the cache.
             entry->sector = sector;
             entry->dirty = 0;  // Initially not dirty because we just loaded it.
         }
-    }
-    else{ printf("  (buffer_cache_write) CACHE HIT\n");} // Comment this out later
+    } 
+    //else {//printf("  (buffer_cache_write) CACHE HIT\n");}
 
     // Mark the entry as used, accessed, and dirty since it's being modified.
     entry->used = 1;
@@ -161,15 +161,15 @@ void buffer_cache_write(block_sector_t sector, const void *source, int sector_of
 
     // Perform the write operation to the buffer, not the disk.
     memcpy(entry->buf + sector_ofs, source, chunk_size);
-    printf("(buffer_cache_write) finished\n");
+    //printf("(buffer_cache_write) finished\n");
     lock_release(&buffer_cache_lock);  // Release the lock after the operation.
 }
 
 /* Flush all dirty blocks to disk */
-static void buffer_cache_flush(struct buffer_block *entry){
+static void buffer_cache_flush(struct buffer_block *entry) {
     ASSERT(lock_held_by_current_thread(&buffer_cache_lock));
     if (entry->dirty) {
-        block_write(fs_device, entry->sector, entry->vaddr);
+        block_write(fs_device, entry->sector, entry->buf);
         entry->dirty = 0;
     }
 }
