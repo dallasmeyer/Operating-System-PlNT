@@ -18,11 +18,12 @@ struct buffer_block {
 /* Declare the global cache list */
 struct list cache_list;
 
+/* A lock for synchronizing buffer cache operations. */
+static struct lock buffer_cache_lock;
+
 /* Function to initialize the buffer cache */
 void buffer_cache_init(void);
 
-/* A lock for synchronizing buffer cache operations. */
-static struct lock buffer_cache_lock;
 
 /* Helper function to find a buffer block in the cache */
 struct buffer_block *buffer_cache_find(block_sector_t sector);

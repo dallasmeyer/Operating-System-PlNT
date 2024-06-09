@@ -269,7 +269,6 @@ inode_write_at(struct inode *inode, const void *buffer_, off_t size, off_t offse
       break;
 
     /* Write the required part of the sector directly into the cache entry. */
-    printf("....(write_at) writing sector....");
     buffer_cache_write(sector_idx, buffer + bytes_written, sector_ofs, chunk_size);
 
     /* Advance to the next chunk. */
@@ -278,7 +277,7 @@ inode_write_at(struct inode *inode, const void *buffer_, off_t size, off_t offse
     bytes_written += chunk_size;
     printf(" | done \n");
   }
-  printf("(read_at) finshed\n");
+  printf("(write_at) finshed\n");
   return bytes_written;
 }
 
