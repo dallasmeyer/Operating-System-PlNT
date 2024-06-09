@@ -119,29 +119,29 @@ inode_open (block_sector_t sector)
   struct inode *inode;
 
   /* Check whether this inode is already open. */
-  for (e = list_begin(&open_inodes); e != list_end(&open_inodes);
-       e = list_next(e)) {
-    inode = list_entry(e, struct inode, elem);
-    if (inode->sector == sector) {
-      inode_reopen(inode);
-      return inode;
+  for (e = list_begin (&open_inodes); e != list_end (&open_inodes);
+       e = list_next (e)) 
+    {
+      inode = list_entry (e, struct inode, elem);
+      if (inode->sector == sector) 
+        {
+          inode_reopen (inode);
+          return inode; 
+        }
     }
-  }
 
   /* Allocate memory. */
-  inode = malloc(sizeof *inode);
+  inode = malloc (sizeof *inode);
   if (inode == NULL)
     return NULL;
 
   /* Initialize. */
-  list_push_front(&open_inodes, &inode->elem);
+  list_push_front (&open_inodes, &inode->elem);
   inode->sector = sector;
   inode->open_cnt = 1;
   inode->deny_write_cnt = 0;
   inode->removed = false;
-  
-  // Read the inode data from the buffer cache
-  buffer_cache_read(inode->sector, &inode->data, 0, sizeof(inode->data));
+  block_read (fs_device, inode->sector, &inode->data);
   
   return inode;
 }
@@ -225,16 +225,16 @@ inode_read_at(struct inode *inode, void *buffer_, off_t size, off_t offset)
       break;
 
     /* Read the required part of the sector directly into caller's buffer. */
-    //printf("(read_at) reading sector into callers buffer");
+    printf("....(read_at) reading sector into callers buffer....");
     buffer_cache_read(sector_idx, buffer + bytes_read, sector_ofs, chunk_size);
 
     /* Advance to the next chunk. */
     size -= chunk_size;
     offset += chunk_size;
     bytes_read += chunk_size;
-     //printf(" | done \n");
+    printf(" | done \n");
   }
-  //printf("(read_at) finshed\n");
+  printf("(read_at) finshed\n");
   return bytes_read;
 }
 
@@ -269,14 +269,16 @@ inode_write_at(struct inode *inode, const void *buffer_, off_t size, off_t offse
       break;
 
     /* Write the required part of the sector directly into the cache entry. */
+    printf("....(write_at) writing sector....");
     buffer_cache_write(sector_idx, buffer + bytes_written, sector_ofs, chunk_size);
 
     /* Advance to the next chunk. */
     size -= chunk_size;
     offset += chunk_size;
     bytes_written += chunk_size;
+    printf(" | done \n");
   }
-
+  printf("(read_at) finshed\n");
   return bytes_written;
 }
 
