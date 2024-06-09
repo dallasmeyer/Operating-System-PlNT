@@ -207,7 +207,7 @@ inode_read_at(struct inode *inode, void *buffer_, off_t size, off_t offset)
 {
   uint8_t *buffer = buffer_;
   off_t bytes_read = 0;
-
+  printf("(read_at) starting...\n");
   while (size > 0)
   {
     /* Disk sector to read, starting byte offset within sector. */
@@ -225,7 +225,7 @@ inode_read_at(struct inode *inode, void *buffer_, off_t size, off_t offset)
       break;
 
     /* Read the required part of the sector directly into caller's buffer. */
-    printf("....(read_at) reading sector into callers buffer....");
+    printf("    (read_at) reading sector into callers buffer....\n");
     buffer_cache_read(sector_idx, buffer + bytes_read, sector_ofs, chunk_size);
 
     /* Advance to the next chunk. */
@@ -269,15 +269,20 @@ inode_write_at(struct inode *inode, const void *buffer_, off_t size, off_t offse
       break;
 
     /* Write the required part of the sector directly into the cache entry. */
-    buffer_cache_write(sector_idx, buffer + bytes_written, sector_ofs, chunk_size, sector_left);
+    buffer_cache_write(sector_idx, buffer + bytes_written, sector_ofs, chunk_size);
 
     /* Advance to the next chunk. */
     size -= chunk_size;
     offset += chunk_size;
     bytes_written += chunk_size;
-    printf(" | done \n");
   }
-  printf("(write_at) finshed\n");
+
+  /* Update inode length if we have written past the previous end of the inode. */
+  if (offset > inode->data.length) {
+    inode->data.length = offset;
+    buffer_cache_write(inode->sector, &inode->data, 0, sizeof(inode->data));
+  }
+
   return bytes_written;
 }
 

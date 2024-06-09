@@ -101,9 +101,10 @@ lookup (const struct dir *dir, const char *name,
   printf("(lookup): looking for [%s]...\n", name);
   for (ofs = 0; inode_read_at(dir->inode, &e, sizeof e, ofs) == sizeof e;
        ofs += sizeof e){
+    printf("(lookup()): (%s) == (%s)? | '", name, e.name);
     if (e.in_use && !strcmp(name, e.name)) 
     {
-      printf("(lookup()): (%s) == (%s)?\n'", name, e.name);
+      
       if (ep != NULL) {
         *ep = e;
       }
@@ -132,6 +133,7 @@ dir_lookup (const struct dir *dir, const char *name,
   ASSERT (name != NULL);
 
   // FIXME: might need to set up some conditions?
+    // Looks like this function will be fully changed later
   if (lookup (dir, name, &e, NULL)){
     *inode = inode_open (e.inode_sector);
   }else{
