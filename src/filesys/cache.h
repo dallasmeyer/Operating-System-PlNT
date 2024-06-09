@@ -29,7 +29,7 @@ struct buffer_block *buffer_cache_find(block_sector_t sector);
 /* Read a block from the buffer cache or disk */
 void buffer_cache_read(block_sector_t sector, void *target, int sector_ofs, int chunk_size);
 /* Write a block to the buffer cache */
-void buffer_cache_write(block_sector_t sector, const void *buffer);
+void buffer_cache_write(block_sector_t sector, const void *source, int sector_ofs, int chunk_size);
 /* Close the buffer cache, flushing all dirty entries to disk. this is a write-back method */
 void buffer_cache_close(void);
 #endif /* filesys/cache.h */

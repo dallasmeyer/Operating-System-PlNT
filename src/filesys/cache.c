@@ -138,18 +138,29 @@ void buffer_cache_read(block_sector_t sector, void *target, int sector_ofs, int 
 }
 
 /* Write a block to the buffer cache */
-void buffer_cache_write(block_sector_t sector, const void *buffer) {
-    ASSERT(fs_device != NULL);  
+void buffer_cache_write(block_sector_t sector, const void *source, int sector_ofs, int chunk_size) {
+    lock_acquire(&buffer_cache_lock);
+
     struct buffer_block *entry = buffer_cache_find(sector);
     if (entry == NULL) {
+        // Cache miss: need eviction
         entry = buffer_cache_evict();
+        ASSERT(entry != NULL);
+
         block_read(fs_device, sector, entry->vaddr);
         entry->sector = sector;
-        entry->used = 1;
-        entry->accessed = 1;
+        entry->dirty = 0;
     }
-    memcpy(entry->vaddr, buffer, BLOCK_SECTOR_SIZE);
+
+    entry->used = 1;
+    entry->accessed = 1;
     entry->dirty = 1;
+    // Loop to try and write? 
+    for (int i = 0; i < chunk_size; i++) {
+        ((uint8_t *)entry->vaddr)[sector_ofs + i] = ((uint8_t *)source)[i];
+    }
+
+    lock_release(&buffer_cache_lock);
 }
 
 /* Flush all dirty blocks to disk */
