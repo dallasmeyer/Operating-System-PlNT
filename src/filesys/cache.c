@@ -133,7 +133,7 @@ void buffer_cache_read(block_sector_t sector, void *target, int sector_ofs, int 
 /* Write a block to the buffer cache */
 void buffer_cache_write(block_sector_t sector, const void *source, int sector_ofs, int chunk_size) {
     //lock_acquire(&buffer_cache_lock);  // Ensures exclusive access to the buffer cache.
-    //printf("(buffer_cache_write) attempting to write to sector: %d, offset: %d, size: %d\n", sector, sector_ofs, chunk_size);
+    printf("(buffer_cache_write) attempting to write to sector: %d, offset: %d, size: %d\n", sector, sector_ofs, chunk_size);
     struct buffer_block *entry = buffer_cache_find(sector);
     if (entry == NULL) {
         // Cache miss: need eviction
