@@ -147,11 +147,12 @@ static bool inode_allocate(struct inode_disk *disk_inode, off_t length) {
   for (size_t i = 0; i < direct_ct; i++) {
     if (disk_inode->direct_blocks[i] == 0) {
       // write to the "1" free direct block
+      printf("(inode_allocate) attempting direct allocation!\n");
       // FIXME: allocation error!
-      if (!free_map_allocate(1, &disk_inode->direct_blocks[i])) {
-        // failed to allocate
-        return false;
-      }
+      // if (!free_map_allocate(1, &disk_inode->direct_blocks[i])) {
+      //   // failed to allocate
+      //   return false;
+      // }
       // init the block's values to zero
       buffer_cache_write(disk_inode->direct_blocks[i], zero, 0, BLOCK_SECTOR_SIZE);
     }
@@ -185,7 +186,7 @@ static bool inode_allocate(struct inode_disk *disk_inode, off_t length) {
 bool
 inode_create (block_sector_t sector, off_t length)
 {
-  printf("(inode_create) start!\n");
+  // printf("(inode_create) start!\n");
   struct inode_disk *disk_inode = NULL;
   bool success = false;
 
@@ -205,12 +206,12 @@ inode_create (block_sector_t sector, off_t length)
         {
           // write to the cache
           buffer_cache_write(sector, disk_inode, 0, BLOCK_SECTOR_SIZE);
-          printf("(inode_create) success!\n");
+          // printf("(inode_create) success!\n");
           success = true; 
         } 
       free (disk_inode);
     }
-  printf("(inode_create) finished!\n");
+  // printf("(inode_create) finished!\n");
   return success;
 }
 
@@ -361,7 +362,7 @@ inode_write_at(struct inode *inode, const void *buffer_, off_t size, off_t offse
   }
 
   // extend the file
-  if(byte_to_sector(inode, offset + size - 1) == -1) {
+  if(byte_to_sector(inode, offset + size - 1) == -1u) {
     printf("(inode_write_at) extend file\n");
     inode_allocate(&inode->data, size+offset);
     inode->data.length = size+offset;
