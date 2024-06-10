@@ -107,7 +107,7 @@ void buffer_cache_close(void) {
 /* Read a block from the buffer cache or disk into a specified memory location. */
 void buffer_cache_read(block_sector_t sector, void *target, int sector_ofs, int chunk_size) {
     //lock_acquire(&buffer_cache_lock);
-    //printf("(buffer_cache_read) starting\n");
+    printf("(buffer_cache_read) attempting read sector: %d, offset: %d, size: %d\n", sector, sector_ofs, chunk_size);
     // Check if the block we want is in the buffer cache
     struct buffer_block *entry = buffer_cache_find(sector);
     if (entry == NULL) {
