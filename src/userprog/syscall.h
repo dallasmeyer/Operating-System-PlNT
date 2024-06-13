@@ -36,5 +36,10 @@ int write(int fd, const void *buffer, unsigned length);
 void seek(int fd, unsigned position);
 unsigned tell(int fd);
 void close(int fd);
-
+// Directory functions 
+bool mkdir(const char *dir);
+bool readdir (int fd, char *name);
+bool isdir(int fd);
+int inumber(int fd);
+bool chdir (const char *dir);
 #endif /**< userprog/syscall.h */

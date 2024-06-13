@@ -21,7 +21,7 @@ struct inode_disk
 {
   off_t length;                       /**< File size in bytes. */
   unsigned magic;                     /**< Magic number. */
-  bool directory;
+  bool directory;                     // New: if true is directory
 
   // New: using indexing direct/indirect blocks
   block_sector_t direct_blocks[DIRECT_COUNT];
@@ -47,8 +47,7 @@ struct inode
     int deny_write_cnt;                 /**< 0: writes ok, >0: deny writes. */
     struct inode_disk data;             /**< Inode content. */
 
-    // NEW 
-    off_t length;
+  
   };
 
 /* New: From the index, retrieve the sector */
@@ -265,7 +264,7 @@ static bool inode_deallocate(struct inode_disk *disk_inode, off_t length) {
    Returns true if successful.
    Returns false if memory or disk allocation fails. */
 bool
-inode_create (block_sector_t sector, off_t length)
+inode_create (block_sector_t sector, off_t length, int is_dir)
 {
   // printf("***(inode_create) start, sector %d, length %d!\n", sector, length);
   struct inode_disk *disk_inode = NULL;

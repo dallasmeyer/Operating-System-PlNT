@@ -303,7 +303,7 @@ bool create(const char *file, unsigned initial_size) {
   // using locks to prevent race conditions
   debug_printf("create(): attempting to acquire file lock\n");
   lock_acquire(&file_lock);
-  int result = filesys_create(file, initial_size);
+  int result = filesys_create(file, initial_size, 0); // return 0 for is_dir
   lock_release(&file_lock);
   debug_printf("create(): result = %d!\n", result); 
   
@@ -483,3 +483,26 @@ void close (int fd) {
 
 }
 
+/*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
+// Directory system calls
+/*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
+/* create a directory named dir*/
+bool mkdir(const char *dir){
+  return 1;
+}
+/* Read a directory entry from fd*/
+bool readdir (int fd, char *name){
+  return 1;
+}
+/* return true if fd represents a directory or false if it doesnt*/
+bool isdir(int fd){
+  return 1;
+}
+/* return the inode number of the inode assoicated with fd (can be file or directory)*/
+int inumber(int fd){
+  return 1;
+}
+/* Change the current workign direectory of the process to be passed dr (can be relative or absolute)*/
+bool chdir (const char *dir){
+  return 1;
+}
