@@ -281,6 +281,7 @@ inode_create (block_sector_t sector, off_t length, int is_dir)
     {
       disk_inode->length = length;
       disk_inode->magic = INODE_MAGIC;
+      disk_inode->is_dir = is_dir;
       // Allocate the blocks for the inode
       if (inode_allocate(disk_inode, disk_inode->length))
         {
