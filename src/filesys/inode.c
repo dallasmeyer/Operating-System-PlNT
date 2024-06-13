@@ -514,3 +514,7 @@ inode_length (const struct inode *inode)
 {
   return inode->data.length;
 }
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+//    directory and removing inode functions
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
