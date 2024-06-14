@@ -281,7 +281,7 @@ inode_create (block_sector_t sector, off_t length, int is_dir)
     {
       disk_inode->length = length;
       disk_inode->magic = INODE_MAGIC;
-      disk_inode->is_dir = is_dir;
+      disk_inode->directory = is_dir;
       // Allocate the blocks for the inode
       if (inode_allocate(disk_inode, disk_inode->length))
         {
@@ -328,8 +328,8 @@ inode_open (block_sector_t sector)
   inode->deny_write_cnt = 0;
   inode->removed = false;
 
+  // Try to get the inode from the buffer cache
   buffer_cache_read (inode->sector, &inode->data, 0, BLOCK_SECTOR_SIZE);
-  
   return inode;
 }
 
@@ -518,3 +518,20 @@ inode_length (const struct inode *inode)
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 //    directory and removing inode functions
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/* Returns if the inode is a directory */
+bool
+inode_is_dir (const struct inode *inode)
+{
+  if (inode == NULL) {
+    return false;
+  }
+
+  return inode->data.directory;
+}
+
+/* Returns if the file is removed or not */
+bool
+inode_is_removed (const struct inode *inode)
+{
+  return inode->removed;
+}

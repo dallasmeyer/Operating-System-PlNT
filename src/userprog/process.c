@@ -147,20 +147,6 @@ start_process (void *file_name_)
   debug_extra_printf("	total arg_count: %d | total_size %lu \n", arg_count, arg_size);
  
 
-  // For loop to print out the user prog paraemters
-  // if (strstr(user_prog, "args") != NULL) printf("(args) argc = %d\n", arg_count); 
-  
-  for(int i = 0; i < arg_count+1; i++){
-    if (strstr(user_prog, "args") != NULL) {
-      if (user_args[i]) {
-        // printf("(args) argv[%d] = '%s'\n", i, user_args[i]); 
-      } else {
-        // printf("(args) argv[%d] = null\n", i); 
-      }
-    }
-  }; 
-
-
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
@@ -187,6 +173,13 @@ start_process (void *file_name_)
     debug_printf("(process_start) error loading source file\n");
     sema_up(&thread_current()->parent->sem_child_load); 
     thread_exit ();
+  }
+  
+  // NEW_DIR: Add the parent threead cwd if it existts or default to root directory
+  if(thread_current()->parent != NULL && thread_current()->parent->cwd != NULL){
+    thread_current()->cwd = dir_reopen(thread_current()->parent->cwd);
+  }else{
+    thread_current()->cwd = dir_open_root();
   }
 
   // unblock parent thread

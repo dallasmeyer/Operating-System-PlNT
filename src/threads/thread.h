@@ -117,7 +117,7 @@ struct thread
     tid_t child_waiting;               // Child the thread is waiting on 
 
     // New: project 4 directory
-    struct dir *rel_directory;
+    struct dir *cwd;
 
     /* Owned by thread.c. */
     unsigned magic;                     /**< Detects stack overflow. */

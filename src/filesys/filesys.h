@@ -3,6 +3,7 @@
 
 #include <stdbool.h>
 #include "filesys/off_t.h"
+#include "filesys/directory.h" // Just for NAME_MAX
 
 /** Sectors of system file inodes. */
 #define FREE_MAP_SECTOR 0       /**< Free map file inode sector. */
@@ -18,4 +19,8 @@ bool filesys_create (const char *name, off_t initial_size, int is_dir);
 struct file *filesys_open (const char *name);
 bool filesys_remove (const char *name);
 
+// directory helper functions
+bool split_path (const char *path, char *dir, char *base);
+struct dir *dir_open_path (const char *path);
+static bool get_next_part (char part[NAME_MAX + 1], const char **srcp);
 #endif /**< filesys/filesys.h */
