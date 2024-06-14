@@ -140,7 +140,7 @@ static void syscall_handler(struct intr_frame *f UNUSED) {
 	  case SYS_REMOVE: 
        //if(!valid_add()) {exit(-1);}
       debug_printf("(syscall) syscall_funct is [SYS_REMOVE]\n");
-      remove(*(stack_p+1));
+      f->eax = remove(*(stack_p+1));
       break; 
 
 	  // Case 7: Open a file 
@@ -348,6 +348,7 @@ bool remove(const char *file) {
 
   lock_acquire(&file_lock);
   bool result = filesys_remove(file);
+  debug_printf("remove(): result removing[%d]! \n", result);
   lock_release(&file_lock);
   return result;
 }
@@ -373,7 +374,7 @@ struct file_inst *locate_file (int fd) {
 
 int open(const char *file) {
   // Opens the file, returning non-negative integer, -1, or the fd
-  debug_printf("(open) Opening file\n");
+  debug_printf("(open) Opening file [%s]\n", file);
   lock_acquire(&file_lock);
   struct file *file_p = filesys_open(file);
   lock_release(&file_lock);

@@ -251,42 +251,56 @@ dir_is_empty (struct dir *dir)
 bool
 dir_remove (struct dir *dir, const char *name) 
 {
-  struct dir_entry e;
-  struct inode *inode = NULL;
-  bool success = false;
-  off_t ofs;
+  struct dir_entry e;  // Directory entry to store the found entry
+  struct inode *inode = NULL;  // Inode corresponding to the directory entry
+  bool success = false;  
+  off_t ofs; 
 
-  ASSERT (dir != NULL);
-  ASSERT (name != NULL);
+  ASSERT (dir != NULL);  // Ensure the directory is not NULL
+  ASSERT (name != NULL);  // Ensure the name is not NULL
 
-  if (!lookup(dir, name, &e, &ofs))
+
+  //printf("(dir_remove) stage 1!\n");
+  // Lookup the directory entry by name and get its offset
+  if (!lookup(dir, name, &e, &ofs)){
+    //printf("(dir_remove) failed lookup!\n");
     return false;
+  }
 
+  //printf("(dir_remove) stage 2!\n");
+  // Open the inode corresponding to the directory entry
   inode = inode_open(e.inode_sector);
   if (inode == NULL)
     return false;
 
+  //printf("(dir_remove) stage 3!\n");
   // Ensure the directory is empty before removal
   if (inode_is_dir(inode)) {
-    struct dir *sub_dir = dir_open(inode);
+    struct dir *sub_dir = dir_open(inode);  // Open the directory to check its contents
     if (!dir_is_empty(sub_dir)) {
       dir_close(sub_dir);
       inode_close(inode);
-      return false;
+      return false;  // Return false if the directory is not empty
     }
     dir_close(sub_dir);
   }
 
+  //printf("(dir_remove) stage 4!\n");
+  // Mark the directory entry as not in use
   e.in_use = false;
   if (inode_write_at(dir->inode, &e, sizeof e, ofs) != sizeof e)
     return false;
 
+  // Mark the inode as removed
   inode_remove(inode);
   success = true;
 
+  // Close the inode
   inode_close(inode);
+  //printf("(dir_remove) worked! \n");
   return success;
 }
+
 
 
 

@@ -124,6 +124,7 @@ filesys_remove (const char *name)
     return false;
   }
 
+  //printf("(filesys_remove) dir_name[%s] | base_name[%s] \n", dir_name, base_name);
   struct dir *dir = dir_open_path(dir_name);
   bool success = false;
 
