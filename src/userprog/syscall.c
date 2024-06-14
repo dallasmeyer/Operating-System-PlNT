@@ -433,7 +433,6 @@ int write(int fd, const void *buffer, unsigned size) {
   // Idea: try and write all of the all of buffer to console in a single call.
 
   // Check if console out, as fd = 1 for console writes.
-  
   debug_printf("(write) fd:%d\n", fd);
   if (fd == STDOUT_FILENO) {
     putbuf(buffer, size);
@@ -447,7 +446,7 @@ int write(int fd, const void *buffer, unsigned size) {
     return -1;
     debug_printf("(write) fd_e NULL!\n");
   }
-  
+
   lock_acquire(&file_lock);
   // write to the file
   int result = file_write(fd_e->file_p, buffer, size);

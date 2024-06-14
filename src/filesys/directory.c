@@ -227,42 +227,68 @@ dir_add (struct dir *dir, const char *name, block_sector_t inode_sector, int is_
     return success;
 }
 
+
+/* SUpport function for dir_remove()*/
+bool
+dir_is_empty (struct dir *dir) 
+{
+  struct dir_entry e;
+  off_t ofs;
+
+  ASSERT (dir != NULL);
+
+  for (ofs = 0; inode_read_at(dir->inode, &e, sizeof e, ofs) == sizeof e;
+       ofs += sizeof e) {
+    if (e.in_use && strcmp(e.name, ".") != 0 && strcmp(e.name, "..") != 0) {
+      return false;
+    }
+  }
+  return true;
+}
 /** Removes any entry for NAME in DIR.
     Returns true if successful, false on failure,
     which occurs only if there is no file with the given NAME. */
 bool
 dir_remove (struct dir *dir, const char *name) 
 {
-    struct dir_entry e;
-    struct inode *inode = NULL;
-    bool success = false;
-    off_t ofs;
+  struct dir_entry e;
+  struct inode *inode = NULL;
+  bool success = false;
+  off_t ofs;
 
-    ASSERT (dir != NULL);
-    ASSERT (name != NULL);
+  ASSERT (dir != NULL);
+  ASSERT (name != NULL);
 
-    /* Find directory entry. */
-    if (!lookup(dir, name, &e, &ofs))
-        goto done;
+  if (!lookup(dir, name, &e, &ofs))
+    return false;
 
-    /* Open inode. */
-    inode = inode_open(e.inode_sector);
-    if (inode == NULL)
-        goto done;
+  inode = inode_open(e.inode_sector);
+  if (inode == NULL)
+    return false;
 
-    /* Erase directory entry. */
-    e.in_use = false;
-    if (inode_write_at(dir->inode, &e, sizeof e, ofs) != sizeof e)
-        goto done;
+  // Ensure the directory is empty before removal
+  if (inode_is_dir(inode)) {
+    struct dir *sub_dir = dir_open(inode);
+    if (!dir_is_empty(sub_dir)) {
+      dir_close(sub_dir);
+      inode_close(inode);
+      return false;
+    }
+    dir_close(sub_dir);
+  }
 
-    /* Remove inode. */
-    inode_remove(inode);
-    success = true;
+  e.in_use = false;
+  if (inode_write_at(dir->inode, &e, sizeof e, ofs) != sizeof e)
+    return false;
 
- done:
-    inode_close(inode);
-    return success;
+  inode_remove(inode);
+  success = true;
+
+  inode_close(inode);
+  return success;
 }
+
+
 
 /** Reads the next directory entry in DIR and stores the name in
     NAME.  Returns true if successful, false if the directory
