@@ -9,6 +9,9 @@
 #include "filesys/cache.h"
 #include "threads/interrupt.h"
 
+//#define debug_printf(fmt, ...) printf(fmt, ##__VA_ARGS__)
+#define debug_printf(fmt, ...) // Define as empty if debugging is disabled
+
 /** Identifies an inode. */
 #define INODE_MAGIC 0x494e4f44
 
@@ -291,7 +294,7 @@ inode_create (block_sector_t sector, off_t length, int is_dir)
         }
       free (disk_inode);
     }
-  // printf("***(inode_create) finished!\n");
+   debug_printf("***(inode_create) finished ret[%d]!\n", success);
   return success;
 }
 

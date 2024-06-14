@@ -9,6 +9,9 @@
 #include "filesys/cache.h"
 #include "threads/thread.h"
 
+#define debug_printf(fmt, ...) printf(fmt, ##__VA_ARGS__)
+//#define debug_printf(fmt, ...) // Define as empty if debugging is disabled
+
 /** Partition that contains the file system. */
 struct block *fs_device;
 
@@ -69,6 +72,9 @@ filesys_create (const char *name, off_t initial_size, int is_dir)
                   && free_map_allocate(1, &inode_sector)
                   && inode_create(inode_sector, initial_size, is_dir)
                   && dir_add(dir, base_name, inode_sector, is_dir));
+  
+
+
   if (!success && inode_sector != 0) 
     free_map_release(inode_sector, 1);
   dir_close(dir);
@@ -135,7 +141,10 @@ filesys_remove (const char *name)
 
   free(dir_name);
   free(base_name);
-
+  if (success) {
+    buffer_cache_close(); // Ensure buffer cache is flushed to disk //change
+  }
+  
   return success;
 }
 

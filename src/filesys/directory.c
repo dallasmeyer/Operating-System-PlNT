@@ -8,6 +8,9 @@
 #include "threads/thread.h"
 #include "filesys/cache.h"
 
+//#define debug_printf(fmt, ...) printf(fmt, ##__VA_ARGS__)
+#define debug_printf(fmt, ...) // Define as empty if debugging is disabled
+
 /** A directory. */
 struct dir 
 {
@@ -187,41 +190,74 @@ dir_add (struct dir *dir, const char *name, block_sector_t inode_sector, int is_
     ASSERT (name != NULL);
 
     /* Check NAME for validity. */
-    if (*name == '\0' || strlen(name) > NAME_MAX)
+    if (*name == '\0' || strlen(name) > NAME_MAX) {
+        debug_printf("(dir_add) Invalid name: %s\n", name);
         return false;
+    }
 
     /* Check that NAME is not in use. */
-    if (lookup(dir, name, NULL, NULL))
+    if (lookup(dir, name, NULL, NULL)) {
+        debug_printf("(dir_add) Name already in use: %s\n", name);
         goto done;
+    }
 
     /* Set OFS to offset of free slot.
        If there are no free slots, then it will be set to the
-       current end-of-file.
-       
-       inode_read_at() will only return a short read at end of file.
-       Otherwise, we'd need to verify that we didn't get a short
-       read due to something intermittent such as low memory. */
+       current end-of-file. */
     for (ofs = 0; inode_read_at(dir->inode, &e, sizeof e, ofs) == sizeof e;
          ofs += sizeof e) 
+    {
         if (!e.in_use)
             break;
+    }
 
     /* Write slot. */
     e.in_use = true;
     strlcpy(e.name, name, sizeof e.name);
     e.inode_sector = inode_sector;
-    success = inode_write_at(dir->inode, &e, sizeof e, ofs) == sizeof e;
-
-    if (success && is_dir) {
-        struct dir *sub_dir = dir_open(inode_open(inode_sector));
-        if (sub_dir != NULL) {
-            dir_add(sub_dir, ".", inode_sector, 1);
-            dir_add(sub_dir, "..", inode_get_inumber(dir->inode), 1);
-            dir_close(sub_dir);
-        }
+    if (inode_write_at(dir->inode, &e, sizeof e, ofs) != sizeof e) {
+        debug_printf("(dir_add) Failed to write directory entry\n");
+        goto done;
     }
 
- done:
+    if (is_dir) {
+        struct dir *sub_dir = dir_open(inode_open(inode_sector));
+        if (sub_dir == NULL) {
+            debug_printf("(dir_add) Failed to open sub directory\n");
+            goto done;
+        }
+
+        /* Add "." entry */
+        struct dir_entry dot;
+        dot.in_use = true;
+        strlcpy(dot.name, ".", sizeof dot.name);
+        dot.inode_sector = inode_sector;
+        if (inode_write_at(sub_dir->inode, &dot, sizeof dot, 0) != sizeof dot) {
+            debug_printf("(dir_add) Failed to write . entry in sub directory\n");
+            dir_close(sub_dir);
+            goto done;
+        }
+
+        /* Add ".." entry */
+        struct dir_entry dot_dot;
+        dot_dot.in_use = true;
+        strlcpy(dot_dot.name, "..", sizeof dot_dot.name);
+        dot_dot.inode_sector = inode_get_inumber(dir->inode);
+        if (inode_write_at(sub_dir->inode, &dot_dot, sizeof dot_dot, sizeof dot) != sizeof dot_dot) {
+            debug_printf("(dir_add) Failed to write .. entry in sub directory\n");
+            dir_close(sub_dir);
+            goto done;
+        }
+
+        dir_close(sub_dir);
+    }
+
+    success = true;
+
+done:
+    if (!success) {
+        debug_printf("(dir_add) Failed to add entry: %s\n", name);
+    }
     return success;
 }
 
@@ -238,6 +274,7 @@ dir_is_empty (struct dir *dir)
   for (ofs = 0; inode_read_at(dir->inode, &e, sizeof e, ofs) == sizeof e;
        ofs += sizeof e) {
     if (e.in_use && strcmp(e.name, ".") != 0 && strcmp(e.name, "..") != 0) {
+      printf("Directory not empty: %s\n", e.name);
       return false;
     }
   }
