@@ -6,6 +6,7 @@
 #include "filesys/inode.h"
 #include "threads/malloc.h"
 #include "threads/thread.h"
+#include "filesys/cache.h"
 
 /** A directory. */
 struct dir 
@@ -59,10 +60,7 @@ dir_create (block_sector_t sector, size_t entry_cnt)
     // Close the directory
     dir_close(dir);
 
-    // Check if both entries were written successfully
-    if (write_size != sizeof(dir_item) + sizeof(parent_item)) {
-        return false;  // If write size does not match expected size, return false
-    }
+    buffer_cache_close();
 
     return true;  // Return true if directory creation and entries creation were successful
 }
@@ -259,21 +257,16 @@ dir_remove (struct dir *dir, const char *name)
   ASSERT (dir != NULL);  // Ensure the directory is not NULL
   ASSERT (name != NULL);  // Ensure the name is not NULL
 
-
-  //printf("(dir_remove) stage 1!\n");
   // Lookup the directory entry by name and get its offset
   if (!lookup(dir, name, &e, &ofs)){
-    //printf("(dir_remove) failed lookup!\n");
     return false;
   }
 
-  //printf("(dir_remove) stage 2!\n");
   // Open the inode corresponding to the directory entry
   inode = inode_open(e.inode_sector);
   if (inode == NULL)
     return false;
 
-  //printf("(dir_remove) stage 3!\n");
   // Ensure the directory is empty before removal
   if (inode_is_dir(inode)) {
     struct dir *sub_dir = dir_open(inode);  // Open the directory to check its contents
@@ -285,11 +278,12 @@ dir_remove (struct dir *dir, const char *name)
     dir_close(sub_dir);
   }
 
-  //printf("(dir_remove) stage 4!\n");
   // Mark the directory entry as not in use
   e.in_use = false;
-  if (inode_write_at(dir->inode, &e, sizeof e, ofs) != sizeof e)
+  if (inode_write_at(dir->inode, &e, sizeof e, ofs) != sizeof e) {
+    inode_close(inode);
     return false;
+  }
 
   // Mark the inode as removed
   inode_remove(inode);
@@ -297,7 +291,11 @@ dir_remove (struct dir *dir, const char *name)
 
   // Close the inode
   inode_close(inode);
-  //printf("(dir_remove) worked! \n");
+
+  if (success) {
+    buffer_cache_close(); // Ensure buffer cache is flushed to disk //change
+  }
+
   return success;
 }
 
