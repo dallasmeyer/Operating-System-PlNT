@@ -3,7 +3,8 @@
 
 #include <stdint.h>
 #include "devices/block.h" /* Include this header for block_sector_t */
-
+#include "lib/kernel/list.h" /* Include Pintos list header */
+#include "threads/synch.h"
 
 struct buffer_block {
     int dirty;          /* flag for knowing if the block has been changed */
@@ -11,6 +12,26 @@ struct buffer_block {
     int accessed;       /* flag for knowing if the block has been accessed recently */
     block_sector_t sector;  /* on-disk location (sector number) of the block */
     void *vaddr;  /* virtual address of the associated buffer cache entry */
+    struct list_elem elem;  /* List element for inclusion in cache_list */
+    uint8_t buf[BLOCK_SECTOR_SIZE];
 };
 
-#endif /**< filesys/cache.h */
+/* Declare the global cache list */
+struct list cache_list;
+
+/* A lock for synchronizing buffer cache operations. */
+static struct lock buffer_cache_lock;
+
+/* Function to initialize the buffer cache */
+void buffer_cache_init(void);
+
+
+/* Helper function to find a buffer block in the cache */
+struct buffer_block *buffer_cache_find(block_sector_t sector);
+/* Read a block from the buffer cache or disk */
+void buffer_cache_read(block_sector_t sector, void *target, int sector_ofs, int chunk_size);
+/* Write a block to the buffer cache */
+void buffer_cache_write(block_sector_t sector, const void *source, int sector_ofs, int chunk_size);
+/* Close the buffer cache, flushing all dirty entries to disk. this is a write-back method */
+void buffer_cache_close(void);
+#endif /* filesys/cache.h */

@@ -116,6 +116,9 @@ struct thread
     int child_loaded;                  // Flag saying if the child loaded 
     tid_t child_waiting;               // Child the thread is waiting on 
 
+    // New: project 4 directory
+    struct dir *cwd;
+
     /* Owned by thread.c. */
     unsigned magic;                     /**< Detects stack overflow. */
   };

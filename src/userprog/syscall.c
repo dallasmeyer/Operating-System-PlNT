@@ -140,7 +140,7 @@ static void syscall_handler(struct intr_frame *f UNUSED) {
 	  case SYS_REMOVE: 
        //if(!valid_add()) {exit(-1);}
       debug_printf("(syscall) syscall_funct is [SYS_REMOVE]\n");
-      remove(*(stack_p+1));
+      f->eax = remove(*(stack_p+1));
       break; 
 
 	  // Case 7: Open a file 
@@ -218,13 +218,47 @@ static void syscall_handler(struct intr_frame *f UNUSED) {
       debug_printf("(syscall) syscall_funct is [SYS_CLOSE]\n");
       break; 
 
-	  //~~~~~ Project 2 System Calls ~~~~~
-  	  // Default to exiting the process 
-	  default: 
-    debug_printf("(syscall) syscall_funct is DEFAULT [SYS_EXIT]\n");
-    exit(-1);
-	  break; 
-  
+	  // Case 14: Create a directory
+    case SYS_MKDIR:
+      debug_printf("(syscall) syscall_funct is [SYS_MKDIR]\n");
+      if (!valid_addr(stack_p + 1) || !valid_str(*(stack_p + 1))) { exit(-1); }
+      f->eax = mkdir(*(stack_p + 1));
+      break;
+
+    // Case 15: Change the current working directory
+    case SYS_CHDIR:
+      debug_printf("(syscall) syscall_funct is [SYS_CHDIR]\n");
+      if (!valid_addr(stack_p + 1) || !valid_str(*(stack_p + 1))) { exit(-1); }
+      f->eax = chdir(*(stack_p + 1));
+      break;
+
+    // Case 16: Read a directory entry
+    case SYS_READDIR:
+      debug_printf("(syscall) syscall_funct is [SYS_READDIR]\n");
+      if (!valid_addr(stack_p + 1) || !valid_addr(stack_p + 2) || !valid_addr(*(stack_p + 2))) { exit(-1); }
+      f->eax = readdir(*(stack_p + 1), *(stack_p + 2));
+      break;
+
+    // Case 17: Check if fd represents a directory
+    case SYS_ISDIR:
+      debug_printf("(syscall) syscall_funct is [SYS_ISDIR]\n");
+      if (!valid_addr(stack_p + 1)) { exit(-1); }
+      f->eax = isdir(*(stack_p + 1));
+      break;
+
+    // Case 18: Get inode number for a file or directory
+    case SYS_INUMBER:
+      debug_printf("(syscall) syscall_funct is [SYS_INUMBER]\n");
+      if (!valid_addr(stack_p + 1)) { exit(-1); }
+      f->eax = inumber(*(stack_p + 1));
+      break;
+
+    //~~~~~ Project 2 System Calls ~~~~~
+    // Default to exiting the process 
+    default: 
+      debug_printf("(syscall) syscall_funct is DEFAULT [SYS_EXIT]\n");
+      exit(-1);
+      break; 
   }
 }
 
@@ -245,12 +279,7 @@ void exit(int status) {
   debug_printf("  (exit) child loaded\n");
   thread_current()->exit_status = status;
 
-  // if (status < -1) {
-  //   thread_current()->exit_status = -1;
-  // }
-  
   // Tell the parent thread we are done
-  
   // Find our identifier from the parent
   struct child *c_t = find_child(thread_current()->tid, thread_current()->parent);
   if(c_t != NULL){
@@ -303,7 +332,7 @@ bool create(const char *file, unsigned initial_size) {
   // using locks to prevent race conditions
   debug_printf("create(): attempting to acquire file lock\n");
   lock_acquire(&file_lock);
-  int result = filesys_create(file, initial_size);
+  int result = filesys_create(file, initial_size, 0); // return 0 for is_dir
   lock_release(&file_lock);
   debug_printf("create(): result = %d!\n", result); 
   
@@ -319,6 +348,7 @@ bool remove(const char *file) {
 
   lock_acquire(&file_lock);
   bool result = filesys_remove(file);
+  debug_printf("remove(): result removing[%d]! \n", result);
   lock_release(&file_lock);
   return result;
 }
@@ -344,7 +374,7 @@ struct file_inst *locate_file (int fd) {
 
 int open(const char *file) {
   // Opens the file, returning non-negative integer, -1, or the fd
-  debug_printf("(open) Opening file\n");
+  debug_printf("(open) Opening file [%s]\n", file);
   lock_acquire(&file_lock);
   struct file *file_p = filesys_open(file);
   lock_release(&file_lock);
@@ -404,7 +434,6 @@ int write(int fd, const void *buffer, unsigned size) {
   // Idea: try and write all of the all of buffer to console in a single call.
 
   // Check if console out, as fd = 1 for console writes.
-  
   debug_printf("(write) fd:%d\n", fd);
   if (fd == STDOUT_FILENO) {
     putbuf(buffer, size);
@@ -418,7 +447,7 @@ int write(int fd, const void *buffer, unsigned size) {
     return -1;
     debug_printf("(write) fd_e NULL!\n");
   }
-  
+
   lock_acquire(&file_lock);
   // write to the file
   int result = file_write(fd_e->file_p, buffer, size);
@@ -483,3 +512,54 @@ void close (int fd) {
 
 }
 
+/*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
+// Directory system calls
+/*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
+/* create a directory named dir*/
+/* Create a directory named dir */
+bool mkdir(const char *dir) {
+  bool success;
+
+  lock_acquire(&file_lock);
+  success = filesys_create(dir, 0, true);
+  lock_release(&file_lock);
+
+  return success;
+}
+
+/* Read a directory entry from fd */
+bool readdir(int fd, char *name) {
+  struct file_inst *file_inst = locate_file(fd);
+  struct dir *dir = (struct dir *) file_inst->file_p;
+
+  if (!inode_is_dir(dir_get_inode(dir))) {
+    return false;
+  }
+
+  return dir_readdir(dir, name);
+}
+
+/* Return true if fd represents a directory or false if it doesn't */
+bool isdir(int fd) {
+  struct file_inst *file_inst = locate_file(fd);
+  return inode_is_dir(file_get_inode(file_inst->file_p));
+}
+
+/* Return the inode number of the inode associated with fd (can be file or directory) */
+int inumber(int fd) {
+  struct file_inst *file_inst = locate_file(fd);
+  return inode_get_inumber(file_get_inode(file_inst->file_p));
+}
+
+/* Change the current working directory */
+bool chdir(const char *dir) {
+  struct dir *new_dir = dir_open_path(dir);
+
+  if (new_dir == NULL) {
+    return false;
+  }
+
+  dir_close(thread_current()->cwd);
+  thread_current()->cwd = new_dir;
+  return true;
+}

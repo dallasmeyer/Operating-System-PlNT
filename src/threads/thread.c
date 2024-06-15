@@ -602,7 +602,7 @@ allocate_tid (void)
    Used by switch.S, which can't figure it out on its own. */
 uint32_t thread_stack_ofs = offsetof (struct thread, stack);
 
-// Returns the child thread being searched for
+/* Returns the child thread being searched for */
 struct child* find_child(tid_t tid, struct thread *cur) {
     // Initialize the element we are searching for 
     struct list_elem *elem_c = list_begin(&cur->child_list);
